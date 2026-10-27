@@ -1,0 +1,149 @@
+$date
+	Tue Oct 27 23:10:45 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module unary_reduction_tb $end
+$var wire 1 ! out_xor $end
+$var wire 1 " out_or $end
+$var wire 1 # out_and $end
+$var reg 4 $ in [3:0] $end
+$var integer 32 % errors [31:0] $end
+$var integer 32 & i [31:0] $end
+$var integer 32 ' j [31:0] $end
+$var integer 32 ( ones [31:0] $end
+$scope module dut $end
+$var wire 4 ) in [3:0] $end
+$var wire 1 ! out_xor $end
+$var wire 1 " out_or $end
+$var wire 1 # out_and $end
+$upscope $end
+$scope task run $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+$end
+#0
+$dumpvars
+b0 )
+bx (
+bx '
+b0 &
+b0 %
+b0 $
+0#
+0"
+0!
+$end
+#10000
+1"
+1!
+b1 $
+b1 )
+b1 &
+b100 '
+b0 (
+#20000
+b10 $
+b10 )
+b10 &
+b1 (
+b100 '
+#30000
+0!
+b11 $
+b11 )
+b11 &
+b100 '
+b1 (
+#40000
+1!
+b100 $
+b100 )
+b100 &
+b100 '
+b10 (
+#50000
+0!
+b101 $
+b101 )
+b101 &
+b100 '
+b1 (
+#60000
+b110 $
+b110 )
+b110 &
+b100 '
+b10 (
+#70000
+1!
+b111 $
+b111 )
+b111 &
+b100 '
+b10 (
+#80000
+b1000 $
+b1000 )
+b1000 &
+b100 '
+b11 (
+#90000
+0!
+b1001 $
+b1001 )
+b1001 &
+b100 '
+b1 (
+#100000
+b1010 $
+b1010 )
+b1010 &
+b100 '
+b10 (
+#110000
+1!
+b1011 $
+b1011 )
+b1011 &
+b100 '
+b10 (
+#120000
+0!
+b1100 $
+b1100 )
+b1100 &
+b100 '
+b11 (
+#130000
+1!
+b1101 $
+b1101 )
+b1101 &
+b100 '
+b10 (
+#140000
+b1110 $
+b1110 )
+b1110 &
+b100 '
+b11 (
+#150000
+1#
+0!
+b1111 $
+b1111 )
+b1111 &
+b100 '
+b11 (
+#160000
+b10000 &
+b100 '
+b100 (

@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Verilog: run current file's folder",
+      "type": "shell",
+      "command": "${workspaceFolder}/sim.sh \"${file}\"",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "reveal": "always",
+        "clear": true,
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "iverilog",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):\\s+(error|warning):?\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "Verilog: open waveform (gtkwave)",
+      "type": "shell",
+      "command": "${workspaceFolder}/wave.sh \"${file}\"",
+      "problemMatcher": []
+    }
+  ]
+}

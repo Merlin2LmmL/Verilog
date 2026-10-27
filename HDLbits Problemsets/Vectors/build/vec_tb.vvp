@@ -1,0 +1,119 @@
+#! /usr/bin/vvp
+:ivl_version "12.0 (stable)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/system.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_sys.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/vhdl_textio.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2005_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/va_math.vpi";
+:vpi_module "/usr/lib/x86_64-linux-gnu/ivl/v2009.vpi";
+S_0x62f6431b3970 .scope package, "$unit" "$unit" 2 1;
+ .timescale 0 0;
+S_0x62f6431b3b00 .scope module, "vec_tb" "vec_tb" 3 5;
+ .timescale -9 -12;
+v0x62f6431cb390_0 .var/i "errors", 31 0;
+v0x62f6431cb470_0 .var/i "i", 31 0;
+v0x62f6431cb550_0 .net "o0", 0 0, L_0x62f6431cba30;  1 drivers
+v0x62f6431cb5f0_0 .net "o1", 0 0, L_0x62f6431cbb20;  1 drivers
+v0x62f6431cb690_0 .net "o2", 0 0, L_0x62f6431cbc10;  1 drivers
+v0x62f6431cb780_0 .net "outv", 2 0, L_0x62f6431cb920;  1 drivers
+v0x62f6431cb850_0 .var "vec", 2 0;
+S_0x62f643179490 .scope module, "dut" "top_module" 3 11, 4 3 0, S_0x62f6431b3b00;
+ .timescale -9 -12;
+    .port_info 0 /INPUT 3 "vec";
+    .port_info 1 /OUTPUT 3 "outv";
+    .port_info 2 /OUTPUT 1 "o2";
+    .port_info 3 /OUTPUT 1 "o1";
+    .port_info 4 /OUTPUT 1 "o0";
+L_0x62f6431cb920 .functor BUFZ 3, v0x62f6431cb850_0, C4<000>, C4<000>, C4<000>;
+v0x62f6431b43f0_0 .net "o0", 0 0, L_0x62f6431cba30;  alias, 1 drivers
+v0x62f6431cad80_0 .net "o1", 0 0, L_0x62f6431cbb20;  alias, 1 drivers
+v0x62f6431cae40_0 .net "o2", 0 0, L_0x62f6431cbc10;  alias, 1 drivers
+v0x62f6431caee0_0 .net "outv", 2 0, L_0x62f6431cb920;  alias, 1 drivers
+v0x62f6431cafc0_0 .net "vec", 2 0, v0x62f6431cb850_0;  1 drivers
+L_0x62f6431cba30 .part v0x62f6431cb850_0, 0, 1;
+L_0x62f6431cbb20 .part v0x62f6431cb850_0, 1, 1;
+L_0x62f6431cbc10 .part v0x62f6431cb850_0, 2, 1;
+S_0x62f6431cb190 .scope task, "run" "run" 3 13, 3 13 0, S_0x62f6431b3b00;
+ .timescale -9 -12;
+TD_vec_tb.run ;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v0x62f6431cb470_0, 0, 32;
+T_0.0 ;
+    %load/vec4 v0x62f6431cb470_0;
+    %cmpi/s 8, 0, 32;
+    %jmp/0xz T_0.1, 5;
+    %load/vec4 v0x62f6431cb470_0;
+    %parti/s 3, 0, 2;
+    %store/vec4 v0x62f6431cb850_0, 0, 3;
+    %delay 10000, 0;
+    %load/vec4 v0x62f6431cb780_0;
+    %load/vec4 v0x62f6431cb850_0;
+    %cmp/ne;
+    %jmp/1 T_0.6, 6;
+    %flag_mov 8, 6;
+    %load/vec4 v0x62f6431cb690_0;
+    %load/vec4 v0x62f6431cb850_0;
+    %parti/s 1, 2, 3;
+    %cmp/ne;
+    %flag_or 6, 8;
+T_0.6;
+    %jmp/1 T_0.5, 6;
+    %flag_mov 8, 6;
+    %load/vec4 v0x62f6431cb5f0_0;
+    %load/vec4 v0x62f6431cb850_0;
+    %parti/s 1, 1, 2;
+    %cmp/ne;
+    %flag_or 6, 8;
+T_0.5;
+    %jmp/1 T_0.4, 6;
+    %flag_mov 8, 6;
+    %load/vec4 v0x62f6431cb550_0;
+    %load/vec4 v0x62f6431cb850_0;
+    %parti/s 1, 0, 2;
+    %cmp/ne;
+    %flag_or 6, 8;
+T_0.4;
+    %jmp/0xz  T_0.2, 6;
+    %vpi_call/w 3 18 "$display", "FAIL vec=%b outv=%b o2=%b o1=%b o0=%b", v0x62f6431cb850_0, v0x62f6431cb780_0, v0x62f6431cb690_0, v0x62f6431cb5f0_0, v0x62f6431cb550_0 {0 0 0};
+    %load/vec4 v0x62f6431cb390_0;
+    %addi 1, 0, 32;
+    %store/vec4 v0x62f6431cb390_0, 0, 32;
+T_0.2 ;
+    %load/vec4 v0x62f6431cb470_0;
+    %addi 1, 0, 32;
+    %store/vec4 v0x62f6431cb470_0, 0, 32;
+    %jmp T_0.0;
+T_0.1 ;
+    %end;
+    .scope S_0x62f6431b3b00;
+T_1 ;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v0x62f6431cb390_0, 0, 32;
+    %end;
+    .thread T_1, $init;
+    .scope S_0x62f6431b3b00;
+T_2 ;
+    %vpi_call/w 3 25 "$dumpfile", "vec.vcd" {0 0 0};
+    %vpi_call/w 3 26 "$dumpvars", 32'sb00000000000000000000000000000000, S_0x62f6431b3b00 {0 0 0};
+    %fork TD_vec_tb.run, S_0x62f6431cb190;
+    %join;
+    %load/vec4 v0x62f6431cb390_0;
+    %cmpi/e 0, 0, 32;
+    %jmp/0xz  T_2.0, 4;
+    %vpi_call/w 3 28 "$display", "PASS: all tests passed" {0 0 0};
+    %jmp T_2.1;
+T_2.0 ;
+    %vpi_call/w 3 29 "$display", "FAILED: %0d mismatches", v0x62f6431cb390_0 {0 0 0};
+T_2.1 ;
+    %vpi_call/w 3 30 "$finish" {0 0 0};
+    %end;
+    .thread T_2;
+# The file index is used to find the file name in the following table.
+:file_names 5;
+    "N/A";
+    "<interactive>";
+    "-";
+    "/home/dbg-06/VS/Verilog/HDLbits Problemsets/Vectors/vec_tb.v";
+    "/home/dbg-06/VS/Verilog/HDLbits Problemsets/Vectors/vec.v";
