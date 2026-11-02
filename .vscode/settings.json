@@ -5,5 +5,5 @@
   "editor.insertSpaces": true,
   "verilog.linting.linter": "iverilog",
   "verilog.linting.iverilog.runAtFileLocation": true,
-  "verilog.linting.iverilog.arguments": "-g2012 -Wno-timescale -I ."
+  "verilog.linting.iverilog.arguments": "-g2012 -Wno-timescale -I . -y ."
 }

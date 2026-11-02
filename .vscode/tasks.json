@@ -31,6 +31,38 @@
       "type": "shell",
       "command": "${workspaceFolder}/wave.sh \"${file}\"",
       "problemMatcher": []
+    },
+    {
+      "label": "CPU: run program with trace",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/CPU/run.sh -t \"${file}\"",
+      "presentation": {
+        "reveal": "always",
+        "clear": true,
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "owner": "asm",
+        "fileLocation": "absolute",
+        "pattern": {
+          "regexp": "^(.*):(\\d+):\\s+(error|warning):?\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "severity": 3,
+          "message": 4
+        }
+      }
+    },
+    {
+      "label": "CPU: run program and open waveform",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/CPU/run.sh -w \"${file}\" && ${workspaceFolder}/wave.sh \"${file}\"",
+      "presentation": {
+        "reveal": "always",
+        "clear": true,
+        "panel": "shared"
+      },
+      "problemMatcher": []
     }
   ]
 }

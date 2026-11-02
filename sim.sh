@@ -3,6 +3,7 @@
 #   thing_tb.v   -> run that testbench
 #   thing.v      -> run thing_tb.v next to it
 #   folder       -> run every *_tb.v in it and print a summary
+#   program.asm  -> assemble it and run it on the CPU (CPU/run.sh)
 # A testbench `include`s the design it tests, so only the testbench is compiled.
 set -uo pipefail
 
@@ -21,6 +22,9 @@ run_tb() {
 }
 
 target="${1:-.}"
+if [[ $target == *.asm ]]; then
+  exec bash "$(dirname "$(realpath "$0")")/CPU/run.sh" "$target"
+fi
 if [[ -d $target ]]; then
   mapfile -t tbs < <(find "$target" -maxdepth 1 -name '*_tb.v' | sort)
   (( ${#tbs[@]} )) || { echo "No *_tb.v testbench in $target"; exit 1; }

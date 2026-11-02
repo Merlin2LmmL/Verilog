@@ -9,7 +9,8 @@ HDLbits Problemsets/
   Basics/   and.v  and_tb.v  gates.v  gates_tb.v  ...
   Modules/  add32.v  add32_tb.v  ...
   Vectors/  vec.v  vec_tb.v  ...
-sim.sh      run testbenches
+CPU/        my own 32-bit CPU (see CPU/README.md)
+sim.sh      run testbenches (or a CPU program: .asm)
 wave.sh     open a waveform in GTKWave
 .vscode/    Ctrl+Shift+B task, linter settings
 ```
@@ -33,5 +34,8 @@ files can all define `top_module`). It prints `PASS: ...` or `FAIL ...` lines an
 1. Write `name.v` (keep the module name HDLBits asks for, e.g. `top_module`).
 2. Copy any `*_tb.v` as `name_tb.v`, change the `` `include ``, the module name, the ports and the check.
 
-Later: a `cpu/` folder with alu.v, pc.v, regfile.v, ... and a `cpu_tb.v`. Multi-file designs
-can `` `include `` each of their parts from the testbench the same way.
+## CPU
+
+`CPU/` holds my own 32-bit CPU: the instruction set (`CPU/ISA.md`), the Verilog,
+an assembler and example programs. Open any `.asm` file and press **Ctrl+Shift+B** to
+assemble and run it. Details: `CPU/README.md`.
