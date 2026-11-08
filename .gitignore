@@ -1,2 +1,3 @@
 # compiled simulations and assembler output
 build/
+dist/
