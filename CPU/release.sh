@@ -19,10 +19,18 @@ rm -rf "$work" "$pkg"
 mkdir -p "$work" "$pkg/programs"
 
 # the simulator: soc_sim.v is the same top level that run.sh uses with Icarus.
-# -static, so it doesn't depend on the libraries of the machine it runs on
+# -static, so it doesn't depend on the libraries of the machine it runs on.
+# user_finish.cpp replaces Verilator's "- soc_sim.v:64: Verilog $finish" message
+# (which shows a path from the build machine) with a silent version
+cat > "$work/user_finish.cpp" <<'EOF'
+#include "verilated.h"
+void vl_finish(const char*, int, const char*) VL_MT_UNSAFE {
+    Verilated::threadContextp()->gotFinish(true);
+}
+EOF
 verilator --binary --timing -O3 -Wno-fatal -Wno-lint -Wno-style \
-  -CFLAGS -O2 -LDFLAGS -static \
-  -I"$here/cpu" --top-module soc_sim "$here/cpu/soc_sim.v" \
+  -CFLAGS "-O2 -DVL_USER_FINISH" -LDFLAGS -static \
+  -I"$here/cpu" --top-module soc_sim "$here/cpu/soc_sim.v" "$work/user_finish.cpp" \
   --Mdir "$work" -o cpu-sim
 cp "$work/cpu-sim" "$pkg/cpu-sim"
 strip "$pkg/cpu-sim"
@@ -35,6 +43,15 @@ for p in "${tests[@]}"; do
   python3 "$here/tools/asm.py" "$here/tests/$p.asm" -o "$pkg/programs/$p"
 done
 cp "$here/programs/keys.txt" "$pkg/programs/"
+
+# newer Verilator versions print a report at the end unless +verilator+quiet is
+# given, older ones (like 5.020) reject that option, so only use it if it works
+quiet=""
+# (run in its own bash, so a rejected option doesn't print "Aborted (core dumped)")
+if bash -c '"$@" >/dev/null 2>&1; exit $?' _ "$pkg/cpu-sim" +verilator+quiet \
+    "+text=$pkg/programs/fib.text.hex" "+data=$pkg/programs/fib.data.hex" 2>/dev/null; then
+  quiet="+verilator+quiet "
+fi
 
 cat > "$pkg/run" <<'EOF'
 #!/usr/bin/env bash
@@ -57,10 +74,11 @@ if [[ $prog == keys && " $* " != *" +keys="* ]]; then
   extra+=("+keys=$here/programs/keys.txt")   # some sample key presses
 fi
 
-exec "$here/cpu-sim" +verilator+quiet \
+exec "$here/cpu-sim" @QUIET@\
   "+text=$here/programs/$prog.text.hex" "+data=$here/programs/$prog.data.hex" \
   "${extra[@]}" "$@"
 EOF
+sed -i "s/@QUIET@/$quiet/" "$pkg/run"
 chmod +x "$pkg/run"
 
 cat > "$pkg/README.txt" <<EOF
