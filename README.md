@@ -11,32 +11,78 @@ logic simulator, with 8 registers and a handful of flags. It worked, but writing
 programs for it was painful. This one is meant to be big enough for real programs
 and, eventually, small games.
 
-## Where things stand
+## CPU Playground
 
-**HDLBits**
+The playground is a web page for exploring the CPU without installing anything. You
+enter machine code as hex, and the page shows what each instruction does inside the
+CPU. Programs can be run in one go or one instruction at a time.
 
-- [x] Basics
-- [x] Vectors
-- [x] Modules
-- [x] Procedures
-- [x] More Verilog Features
-- [ ] Combinational Logic
-- [ ] Sequential Logic
+**Opening it**
 
-Basics, Vectors and Modules have a testbench for every solution, and 22 of the 24
-pass. The other two (`Vectors/reverse_vec.v` and `Modules/by_pos.v`) are real bugs
-in my solutions that I still need to fix.
+Open `CPU/ui/index.html` in any current browser. No build step and no server are
+needed. If you prefer to serve it, run `python3 -m http.server` inside `CPU/ui` and
+open `http://localhost:8000`.
 
-**The CPU**
+**Entering a program**
 
-- [x] Instruction set written down in [CPU/ISA.md](CPU/ISA.md)
-- [x] Single-cycle CPU in Verilog
-- [x] Assembler
-- [x] Test program for every instruction (89 checks, all passing)
-- [x] Example programs: Fibonacci, Hello World, keyboard input and a bouncing ball
-- [ ] A snake game on the text screen
-- [ ] A faster simulator (Verilator), because games will need it
-- [ ] Some day: a small C compiler for it
+- Type or paste the program into the *Program (hex)* field, one 32-bit instruction
+  per line, for example `01312000` for `add r3, r1, r2`. A `0x` prefix is optional.
+- Everything after `;`, `#` or `//` is a comment.
+- The *Instructions* table below the editor shows the address, the hex word and the
+  disassembled instruction. Invalid hex is reported under the editor.
+- Initial contents of data memory can be entered in the optional *Data memory* field,
+  as hex words starting at address 0.
+- The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
+  Hello World and a program that uses every instruction type.
+
+You can generate the hex for your own assembly programs with the assembler
+(`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
+format as the two fields.
+
+**Reading the display**
+
+The display always shows the next instruction, the one at the current PC, before it
+runs.
+
+- The instruction is split into its fields (opcode, A, B, C or immediate), colored by
+  their role.
+- A sentence under it describes the operation with the actual values, for example
+  `84 = 12 * 7`.
+- The data path diagram shows the 16 registers, the ALU, the data memory, the
+  write-back multiplexer and the program counter. The path of the current instruction
+  is highlighted:
+
+| Color | Meaning |
+|---|---|
+| Blue | register read port 1 (field B), for example the first ALU operand |
+| Orange | register read port 2 (field C, or field A for stores and branches) |
+| Purple | immediate value |
+| Green | result, memory address and write-back to the destination register |
+
+- Branches use the comparator and show whether they are taken. Loads and stores
+  show the address, the byte lane and the data going in or out of memory.
+- *Console output* shows what the program prints. *Data memory* lists every word the
+  program has written, with the most recent write highlighted.
+
+**Running it**
+
+| Control | Key | Action |
+|---|---|---|
+| Step | `S` | execute one instruction |
+| Run | `R` | run until `halt`; press again to pause |
+| Reset | `Esc` | return to the start with the program still loaded |
+| Speed menu | | 1, 4 or 20 instructions per second, or as fast as possible |
+
+The page stops by itself at `halt` and at an illegal instruction, and in the
+"as fast as possible" mode also after 20 million cycles. The program is kept in the browser's local storage, so it is still there after
+a reload.
+
+**Accuracy and limits**
+
+The CPU model in `CPU/ui/emu.js` follows the Verilog in `CPU/cpu/`. It gives the same
+results and cycle counts as the Icarus simulation for `isa_test.asm`, `fib.asm` and
+`hello.asm`. The text screen and keyboard are not implemented in the playground yet;
+writes to the screen are ignored and the keyboard reports no key.
 
 ## What you need
 
@@ -88,6 +134,10 @@ Run one problem, or a whole folder at once:
 ```
 
 The folder version ends with a summary like `=== 8/9 passed - failed: reverse_vec ===`.
+
+The Basics, Vectors and Modules solutions have a testbench each, and 22 of the 24 pass.
+The two that fail, `Vectors/reverse_vec.v` and `Modules/by_pos.v`, are known bugs in
+the solutions. The Procedures and More Features solutions do not have testbenches yet.
 
 To look at the signals in GTKWave:
 
@@ -146,24 +196,6 @@ ended up at which address. That makes the trace a lot easier to follow.
   - *Verilog: open waveform (gtkwave)*
   - *CPU: run program with trace*
   - *CPU: run program and open waveform*
-
-## CPU Playground (in the browser)
-
-`CPU/ui/index.html` is a small web page for exploring the CPU. There is nothing to
-install: open the file in a browser (or run `python3 -m http.server` in `CPU/ui`).
-
-- Type or paste machine code in hex, one instruction per line. Everything after `;`
-  is a comment. The table below the editor shows each instruction as assembly.
-- The diagram shows the next instruction: which registers go into which ALU input
-  (blue = port 1, orange = port 2, purple = immediate) and where the result is written
-  (green), plus the data memory, the write-back multiplexer and the next PC.
-- **Step** runs one instruction (key `S`), **Run** runs until `halt` at the speed you
-  choose (key `R`), **Reset** starts over (`Esc`).
-- The examples include a loop, loads and stores, and Hello World.
-
-Its CPU model (`ui/emu.js`) follows the Verilog and gives the same results on
-`isa_test.asm`, `fib.asm` and `hello.asm`. The text screen and the keyboard are not
-in the playground yet; writes to the screen are ignored.
 
 ## Writing your own program
 
@@ -232,7 +264,8 @@ More about the hardware is in [CPU/README.md](CPU/README.md) and
 
 Icarus simulates about 60,000 CPU cycles per second. That's plenty for Fibonacci
 (165 cycles), but a game that redraws the whole screen every frame will feel slow.
-That's why Verilator is on the list.
+Verilator compiles the CPU to C++ and is much faster, so `CPU/release.sh` uses it to
+build the ready-to-run Linux package.
 
 ## Adding a new HDLBits problem
 
