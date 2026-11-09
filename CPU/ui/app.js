@@ -329,9 +329,35 @@ ff000000   ; halt`,
   }
 
   // ---------- the diagram ----------
-  const REG_X = 12, REG_W = 140, REG_H = 26;
+  // left to right: registers -> ALU -> data memory -> write-back multiplexer, and the write-back
+  // bus runs along the bottom back into the registers. Wires only cross at right angles.
+  const REG_X = 40, REG_W = 140, REG_H = 26;
+  const REG_R = REG_X + REG_W;
   const regY = (i) => 30 + i * 30;
   const regMid = (i) => regY(i) + REG_H / 2;
+  const ARROW = 10;
+  const LANE1 = 205, LANE2 = 228;
+
+  // polyline with rounded corners; the last segment is shortened by `shorten` for the arrow head
+  function roundedPath(pts, radius, shorten) {
+    pts = pts.map((q) => q.slice());
+    if (shorten && pts.length >= 2) {
+      const a = pts[pts.length - 2], b = pts[pts.length - 1];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (len > shorten) { b[0] -= (b[0] - a[0]) / len * shorten; b[1] -= (b[1] - a[1]) / len * shorten; }
+    }
+    let out = `M${pts[0][0]},${pts[0][1]}`;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const p = pts[i - 1], c = pts[i], n = pts[i + 1];
+      const l1 = Math.hypot(c[0] - p[0], c[1] - p[1]), l2 = Math.hypot(n[0] - c[0], n[1] - c[1]);
+      if (!l1 || !l2) continue;
+      const r = Math.min(radius, l1 / 2, l2 / 2);
+      out += ` L${c[0] - (c[0] - p[0]) / l1 * r},${c[1] - (c[1] - p[1]) / l1 * r}`;
+      out += ` Q${c[0]},${c[1]} ${c[0] + (n[0] - c[0]) / l2 * r},${c[1] + (n[1] - c[1]) / l2 * r}`;
+    }
+    const last = pts[pts.length - 1];
+    return out + ` L${last[0]},${last[1]}`;
+  }
 
   function renderDiagram(t) {
     const svg = $('diagram');
@@ -339,23 +365,31 @@ ff000000   ; halt`,
     const d = t.d;
     const live = !d.illegal && !d.halt;
 
-    // arrow heads
+    // arrow heads: the triangle starts where the wire ends, so its tip touches the target
     const defs = el('defs', {});
     for (const [name, color] of Object.entries(COLORS)) {
-      const mk = el('marker', { id: 'ah-' + name, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 11, markerHeight: 11, markerUnits: 'userSpaceOnUse', orient: 'auto-start-reverse' });
+      const mk = el('marker', { id: 'ah-' + name, viewBox: '0 0 10 10', refX: 0, refY: 5, markerWidth: ARROW, markerHeight: 10, markerUnits: 'userSpaceOnUse', orient: 'auto' });
       mk.appendChild(el('path', { d: 'M0,0 L10,5 L0,10 z', fill: color }));
       defs.appendChild(mk);
     }
     svg.appendChild(defs);
 
-    const wire = (pathD, kind, on, opts) => {
-      opts = opts || {};
-      svg.appendChild(el('path', {
-        d: pathD, fill: 'none', stroke: on ? COLORS[kind] : COLORS.off,
-        'stroke-width': on ? 3 : 1.5, 'stroke-linejoin': 'round',
-        'stroke-dasharray': opts.dash ? '6 4' : '',
-        'marker-end': opts.arrow === false ? '' : `url(#ah-${on ? kind : 'off'})`,
-      }));
+    // wires are collected and drawn last: grey (unused) ones below, colored ones on top
+    const pending = [];
+    const dots = [];
+    const wire = (pts, kind, on, opts) => { pending.push({ pts, kind, on, opts: opts || {} }); };
+    const dot = (x, y, kind, on) => { if (on) dots.push({ x, y, kind }); };
+    const flushWires = () => {
+      for (const w of pending.filter((q) => !q.on).concat(pending.filter((q) => q.on))) {
+        const arrow = w.opts.arrow !== false;
+        svg.appendChild(el('path', {
+          d: roundedPath(w.pts, 9, arrow ? ARROW : 0), fill: 'none',
+          stroke: w.on ? COLORS[w.kind] : COLORS.off, 'stroke-width': w.on ? 3 : 1.5,
+          'stroke-linecap': 'round', 'marker-end': arrow ? `url(#ah-${w.on ? w.kind : 'off'})` : '',
+        }));
+        if (w.on) svg.appendChild(el('circle', { cx: w.pts[0][0], cy: w.pts[0][1], r: 4, fill: COLORS[w.kind] }));
+      }
+      for (const q of dots) svg.appendChild(el('circle', { cx: q.x, cy: q.y, r: 4, fill: COLORS[q.kind] }));
     };
     const box = (x, y, w, h, opts) => {
       opts = opts || {};
@@ -380,7 +414,10 @@ ff000000   ; halt`,
     const isBranch = live && d.branch;
     const isMemW = live && d.memWrite;
     const isMemR = live && d.memRead;
+    const memOn = isMemR || isMemW;
     const writes = live && d.regWrite;
+    const wbAlu = writes && d.wbSel === 'alu';
+    const wbPc4 = writes && d.wbSel === 'pc4';
 
     // ---- registers
     text(REG_X, 18, 'Registers', { bold: true, size: 13 });
@@ -392,147 +429,132 @@ ff000000   ; halt`,
       else if (isP2) { fill = '#fdebdc'; stroke = COLORS.p2; sw = 2.5; }
       box(REG_X, regY(i), REG_W, REG_H, { fill, stroke, sw });
       text(REG_X + 6, regY(i) + 17, regName(i).padEnd(3), { bold: true });
-      const v = m.regs[i];
-      text(REG_X + REG_W - 6, regY(i) + 17, hex8(v), { anchor: 'end', fill: i === 0 ? '#999' : '#000' });
-      // role markers
-      if (isRd) svg.appendChild(el('rect', { x: REG_X - 7, y: regY(i) + 3, width: 5, height: REG_H - 6, fill: COLORS.wb }));
-      if (isP1) svg.appendChild(el('rect', { x: REG_X + REG_W + 2, y: regY(i) + 3, width: 5, height: 9, fill: COLORS.p1 }));
-      if (isP2) svg.appendChild(el('rect', { x: REG_X + REG_W + 2, y: regY(i) + 14, width: 5, height: 9, fill: COLORS.p2 }));
+      text(REG_X + REG_W - 6, regY(i) + 17, hex8(m.regs[i]), { anchor: 'end', fill: i === 0 ? '#999' : '#000' });
     }
+    text(LANE1, 24, 'port 1', { size: 9, fill: COLORS.p1, anchor: 'middle' });
+    text(LANE2 + 14, 24, 'port 2', { size: 9, fill: COLORS.p2, anchor: 'middle' });
 
-    // ---- instruction decode summary for ports
-    const lane1 = 176, lane2 = 198;
-
-    // ---- ALU
-    const aluX = 300, aluY = 120, aluW = 120, aluH = 170;
-    box(aluX, aluY, aluW, aluH, { fill: toAlu ? '#fffde7' : '#f5f5f5', stroke: toAlu ? '#000' : '#aaa', sw: toAlu ? 2 : 1, dim: !toAlu });
-    text(aluX + aluW / 2, aluY + 22, 'ALU', { anchor: 'middle', bold: true, size: 15, dim: !toAlu });
-    if (toAlu) {
-      const isAddr = d.memRead || d.memWrite;
-      text(aluX + aluW / 2, aluY + 42, `${E.ALU_NAMES[d.aluOp]} (${E.ALU_SYMBOLS[d.aluOp]})`, { anchor: 'middle', bold: true, size: 13 });
-      if (isAddr) text(aluX + aluW / 2, aluY + 58, 'address', { anchor: 'middle', size: 11, fill: '#555' });
-      if (d.jalr) text(aluX + aluW / 2, aluY + 58, 'jump target', { anchor: 'middle', size: 11, fill: '#555' });
-      text(aluX + 6, 199, 'a ' + hex8(t.aluA), { fill: usesP1 ? COLORS.p1 : '#999', bold: true });
-      text(aluX + 6, 255, 'b ' + hex8(t.aluB), { fill: d.aluBImm ? COLORS.imm : COLORS.p2, bold: true });
-      text(aluX + aluW - 6, aluY + aluH - 8, 'y ' + hex8(t.aluY), { anchor: 'end', fill: COLORS.wb, bold: true });
-    } else {
-      text(aluX + aluW / 2, aluY + 60, 'not used', { anchor: 'middle', size: 12, dim: true });
-    }
-
-    // ---- B input multiplexer and immediate
-    const muxX = 238, muxY = 215, muxW = 34, muxH = 70;
-    box(muxX, muxY, muxW, muxH, { fill: toAlu ? '#fff' : '#f5f5f5', dim: !toAlu });
-    text(muxX + muxW / 2, muxY + 14, 'MUX', { anchor: 'middle', size: 9, dim: !toAlu });
-    text(muxX + 3, muxY + 24, 'reg', { size: 9, dim: !toAlu });
-    text(muxX + 3, muxY + 56, 'imm', { size: 9, dim: !toAlu });
-    const immShown = live && (d.aluBImm || d.branch || d.jal);
-    box(210, 300, 82, 28, { fill: immShown ? '#f3e5f5' : '#f5f5f5', stroke: immShown ? COLORS.imm : '#aaa', sw: immShown ? 2 : 1, dim: !immShown });
-    text(251, 311, 'immediate', { anchor: 'middle', size: 9, dim: !immShown });
-    text(251, 323, immShown ? hex8(d.imm) : '', { anchor: 'middle', size: 11, fill: COLORS.imm, bold: true });
-
-    // ---- branch comparator
-    const cmpX = 300, cmpY = 350, cmpW = 120, cmpH = 56;
-    box(cmpX, cmpY, cmpW, cmpH, { fill: isBranch ? '#fffde7' : '#f5f5f5', stroke: isBranch ? '#000' : '#aaa', sw: isBranch ? 2 : 1, dim: !isBranch });
-    text(cmpX + cmpW / 2, cmpY + 17, 'Branch compare', { anchor: 'middle', size: 11, bold: true, dim: !isBranch });
-    if (isBranch) {
-      const cmp = { beq: '==', bne: '!=', blt: '<', bge: '>=', bltu: '<u', bgeu: '>=u' }[d.name];
-      text(cmpX + cmpW / 2, cmpY + 33, `${regName(d.rs2)} ${cmp} ${regName(d.rs1)}`, { anchor: 'middle', size: 12 });
-      text(cmpX + cmpW / 2, cmpY + 48, t.taken ? 'taken' : 'not taken', { anchor: 'middle', size: 12, bold: true, fill: t.taken ? COLORS.wb : '#b00020' });
-    }
-
-    // ---- wires from the registers
-    if (usesP1) {
-      const y = regMid(d.rs1);
-      const target = isBranch ? 365 : 195;
-      if (toAlu || isBranch) wire(`M${REG_X + REG_W + 8},${y} H${lane1} V${target} H${isBranch ? cmpX : aluX}`, 'p1', true);
-    }
-    if (usesP2) {
-      const y = regMid(d.rs2);
-      const from = `M${REG_X + REG_W + 8},${y} H${lane2}`;
-      if (isBranch) wire(`${from} V385 H${cmpX}`, 'p2', true);
-      else if (isMemW) wire(`${from} V420 H600 V260 H620`, 'p2', true);
-      else if (!d.aluBImm) wire(`${from} V235 H${muxX}`, 'p2', true);
-    }
-    // inactive skeleton wires
-    if (!usesP1 || !(toAlu || isBranch)) wire(`M${lane1},40 V195 H${aluX}`, 'p1', false, { arrow: false });
-    if (!(usesP2 && !isBranch && !isMemW && !d.aluBImm)) wire(`M${lane2},40 V235 H${muxX}`, 'p2', false, { arrow: false });
-    // mux -> ALU b, immediate -> mux
-    wire(`M${muxX + muxW},250 H${aluX}`, d.aluBImm ? 'imm' : 'p2', toAlu);
-    if (live && d.aluBImm) wire(`M236,300 V268 H${muxX}`, 'imm', true);
-    else wire(`M236,300 V268 H${muxX}`, 'imm', false, { arrow: false });
-
-    // ---- program counter
-    box(300, 20, 90, 36, { fill: '#fff' });
-    text(345, 34, 'PC', { anchor: 'middle', size: 10, fill: '#555' });
-    text(345, 49, hex8(t.pc), { anchor: 'middle', bold: true });
-    box(410, 20, 80, 36, { fill: '#fff' });
-    text(450, 34, 'PC + 4', { anchor: 'middle', size: 10, fill: '#555' });
-    text(450, 49, hex8(t.pc4), { anchor: 'middle' });
-    wire('M390,38 H410', 'pc', true);
-
-    box(540, 20, 140, 36, { fill: '#fff', stroke: '#000', sw: 2 });
+    // ---- program counter row
+    box(330, 20, 80, 36);
+    text(370, 34, 'PC', { anchor: 'middle', size: 10, fill: '#555' });
+    text(370, 49, hex8(t.pc), { anchor: 'middle', bold: true });
+    box(450, 20, 80, 36);
+    text(490, 34, 'PC + 4', { anchor: 'middle', size: 10, fill: '#555' });
+    text(490, 49, hex8(t.pc4), { anchor: 'middle' });
+    box(570, 20, 130, 36, { sw: 2 });
     let nextHow = 'PC + 4';
     if (live && d.branch) nextHow = t.taken ? `PC ${d.imm < 0 ? '-' : '+'} ${Math.abs(d.imm)}` : 'PC + 4';
     else if (live && d.jal) nextHow = `PC ${d.imm < 0 ? '-' : '+'} ${Math.abs(d.imm)}`;
     else if (live && d.jalr) nextHow = 'jump target';
     else if (!live) nextHow = 'stays';
-    text(610, 34, 'next PC = ' + nextHow, { anchor: 'middle', size: 9, fill: '#555' });
-    text(610, 49, hex8(t.nextPc), { anchor: 'middle', bold: true });
+    text(635, 34, 'next PC = ' + nextHow, { anchor: 'middle', size: 9, fill: '#555' });
+    text(635, 49, hex8(t.nextPc), { anchor: 'middle', bold: true });
+    wire([[410, 38], [450, 38]], 'pc', true);
     const defaultNext = live && !(d.jal || d.jalr || (d.branch && t.taken));
-    wire('M490,38 H540', 'pc', defaultNext);
-    if (isBranch) wire(`M${cmpX + cmpW},378 H610 V56`, 'wb', true);
-    else wire(`M${cmpX + cmpW},378 H610 V56`, 'wb', false, { arrow: false });
-    if (live && d.jalr) wire('M450,205 V100 H570 V56', 'wb', true);
+    wire([[530, 38], [570, 38]], 'pc', defaultNext);
+
+    // ---- branch comparator
+    const CMP = { x: 330, y: 76, w: 120, h: 60 };
+    box(CMP.x, CMP.y, CMP.w, CMP.h, { fill: isBranch ? '#fffde7' : '#f5f5f5', stroke: isBranch ? '#000' : '#aaa', sw: isBranch ? 2 : 1, dim: !isBranch });
+    text(CMP.x + CMP.w / 2, CMP.y + 17, 'Branch compare', { anchor: 'middle', size: 11, bold: true, dim: !isBranch });
+    if (isBranch) {
+      const cmp = { beq: '==', bne: '!=', blt: '<', bge: '>=', bltu: '<u', bgeu: '>=u' }[d.name];
+      text(CMP.x + CMP.w / 2, CMP.y + 36, `${regName(d.rs2)} ${cmp} ${regName(d.rs1)}`, { anchor: 'middle', size: 12 });
+      text(CMP.x + CMP.w / 2, CMP.y + 52, t.taken ? 'taken' : 'not taken', { anchor: 'middle', size: 12, bold: true, fill: t.taken ? COLORS.wb : '#b00020' });
+    }
+    wire([[CMP.x + CMP.w, 106], [635, 106], [635, 56]], 'wb', isBranch && t.taken);
+
+    // ---- ALU, B input multiplexer, immediate
+    const ALU = { x: 330, y: 165, w: 120, h: 170 };
+    const A_Y = 240, B_Y = 300, OUT_Y = 250;
+    box(ALU.x, ALU.y, ALU.w, ALU.h, { fill: toAlu ? '#fffde7' : '#f5f5f5', stroke: toAlu ? '#000' : '#aaa', sw: toAlu ? 2 : 1, dim: !toAlu });
+    text(ALU.x + ALU.w / 2, ALU.y + 22, 'ALU', { anchor: 'middle', bold: true, size: 15, dim: !toAlu });
+    if (toAlu) {
+      text(ALU.x + ALU.w / 2, ALU.y + 42, `${E.ALU_NAMES[d.aluOp]} (${E.ALU_SYMBOLS[d.aluOp]})`, { anchor: 'middle', bold: true, size: 13 });
+      if (d.memRead || d.memWrite) text(ALU.x + ALU.w / 2, ALU.y + 58, 'address', { anchor: 'middle', size: 11, fill: '#555' });
+      if (d.jalr) text(ALU.x + ALU.w / 2, ALU.y + 58, 'jump target', { anchor: 'middle', size: 11, fill: '#555' });
+      text(ALU.x + 8, A_Y + 4, 'a ' + hex8(t.aluA), { fill: usesP1 ? COLORS.p1 : '#999', bold: true });
+      text(ALU.x + 8, B_Y + 4, 'b ' + hex8(t.aluB), { fill: d.aluBImm ? COLORS.imm : COLORS.p2, bold: true });
+      text(ALU.x + ALU.w - 8, ALU.y + ALU.h - 10, 'y ' + hex8(t.aluY), { anchor: 'end', fill: COLORS.wb, bold: true });
+    } else {
+      text(ALU.x + ALU.w / 2, ALU.y + 60, 'not used', { anchor: 'middle', size: 12, dim: true });
+    }
+
+    const MUX = { x: 270, y: 265, w: 34, h: 70 };
+    box(MUX.x, MUX.y, MUX.w, MUX.h, { fill: toAlu ? '#fff' : '#f5f5f5', dim: !toAlu });
+    text(MUX.x + MUX.w / 2, MUX.y + 11, 'MUX', { anchor: 'middle', size: 9, dim: !toAlu });
+    text(MUX.x + MUX.w - 3, MUX.y + 26, 'reg', { anchor: 'end', size: 9, dim: !toAlu });
+    text(MUX.x + MUX.w / 2, MUX.y + MUX.h - 5, 'imm', { anchor: 'middle', size: 9, dim: !toAlu });
+    const immShown = live && (d.aluBImm || d.branch || d.jal);
+    const IMM = { x: 240, y: 360, w: 95, h: 32 };
+    box(IMM.x, IMM.y, IMM.w, IMM.h, { fill: immShown ? '#f3e5f5' : '#f5f5f5', stroke: immShown ? COLORS.imm : '#aaa', sw: immShown ? 2 : 1, dim: !immShown });
+    text(IMM.x + IMM.w / 2, IMM.y + 13, 'immediate', { anchor: 'middle', size: 9, dim: !immShown });
+    text(IMM.x + IMM.w / 2, IMM.y + 26, immShown ? hex8(d.imm) : '', { anchor: 'middle', size: 11, fill: COLORS.imm, bold: true });
 
     // ---- data memory
-    const mX = 620, mY = 150, mW = 140, mH = 140;
-    const memOn = isMemR || isMemW;
-    box(mX, mY, mW, mH, { fill: memOn ? '#fffde7' : '#f5f5f5', stroke: memOn ? '#000' : '#aaa', sw: memOn ? 2 : 1, dim: !memOn });
-    text(mX + mW / 2, mY + 20, 'Data memory', { anchor: 'middle', bold: true, size: 13, dim: !memOn });
+    const MEM = { x: 600, y: 195, w: 140, h: 160 };
+    box(MEM.x, MEM.y, MEM.w, MEM.h, { fill: memOn ? '#fffde7' : '#f5f5f5', stroke: memOn ? '#000' : '#aaa', sw: memOn ? 2 : 1, dim: !memOn });
+    text(MEM.x + MEM.w / 2, MEM.y + 20, 'Data memory', { anchor: 'middle', bold: true, size: 13, dim: !memOn });
     if (memOn) {
-      text(mX + 6, 185, 'addr', { size: 10, fill: '#555' });
-      text(mX + 6, 198, hex8(t.memAddr), { fill: COLORS.wb, bold: true });
+      text(MEM.x + 8, OUT_Y - 6, 'address', { size: 10, fill: '#555' });
+      text(MEM.x + 8, OUT_Y + 8, hex8(t.memAddr), { fill: COLORS.wb, bold: true });
       if (isMemW) {
-        text(mX + 6, 256, 'write data', { size: 10, fill: '#555' });
-        text(mX + 6, 270, hex8(t.memData), { fill: COLORS.p2, bold: true });
-        text(mX + 6, 284, d.memByte ? `byte ${t.memLane}` : 'whole word', { size: 10, fill: '#555' });
+        text(MEM.x + 8, 321, 'write data', { size: 10, fill: '#555' });
+        text(MEM.x + 8, 335, hex8(t.memData), { fill: COLORS.p2, bold: true });
+        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
       } else {
-        text(mX + mW - 6, 225, 'read data', { anchor: 'end', size: 10, fill: '#555' });
-        text(mX + mW - 6, 239, hex8(t.loadValue), { anchor: 'end', fill: COLORS.wb, bold: true });
-        text(mX + 6, 284, d.memByte ? `byte ${t.memLane}` : 'whole word', { size: 10, fill: '#555' });
+        text(MEM.x + MEM.w - 8, 276, 'read data', { anchor: 'end', size: 10, fill: '#555' });
+        text(MEM.x + MEM.w - 8, 290, hex8(t.loadValue), { anchor: 'end', fill: COLORS.wb, bold: true });
+        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
       }
     }
-    // ALU result -> memory address, ALU result -> write back
-    wire(`M${aluX + aluW},205 H450 V130 H590 V180 H${mX}`, 'wb', memOn);
-    // memory read data -> write back
-    wire(`M${mX + mW},232 H790 V450 H462 V250 H500`, 'wb', isMemR);
 
     // ---- write back multiplexer
-    const wX = 500, wY = 190, wW = 30, wH = 130;
-    box(wX, wY, wW, wH, { fill: writes ? '#fff' : '#f5f5f5', dim: !writes });
-    text(wX + wW / 2, wY + 14, 'WB', { anchor: 'middle', size: 10, dim: !writes });
-    text(wX + 2, 218, 'alu', { size: 8, dim: !writes });
-    text(wX + 2, 253, 'mem', { size: 8, dim: !writes });
-    text(wX + 2, 293, 'PC+4', { size: 8, dim: !writes });
-    const wbAlu = writes && d.wbSel === 'alu';
-    wire(`M${aluX + aluW},205 H450 V215 H${wX}`, 'wb', wbAlu);
-    wire(`M485,56 V290 H${wX}`, 'wb', writes && d.wbSel === 'pc4');
+    const WB = { x: 820, y: 200, w: 46, h: 140 };
+    box(WB.x, WB.y, WB.w, WB.h, { fill: writes ? '#fff' : '#f5f5f5', dim: !writes });
+    text(WB.x + WB.w / 2, WB.y + 14, 'WB', { anchor: 'middle', size: 10, dim: !writes });
+    text(WB.x + WB.w - 4, 229, 'alu', { anchor: 'end', size: 9, dim: !writes });
+    text(WB.x + WB.w - 4, 294, 'mem', { anchor: 'end', size: 9, dim: !writes });
 
-    // ---- write back -> register file
+    // ---- wires: registers -> comparator / ALU / multiplexer / memory
+    const tapP1 = usesP1 ? regMid(d.rs1) : null, tapP2 = usesP2 ? regMid(d.rs2) : null;
+    // port 1 and port 2 buses (grey when unused)
+    wire([[LANE1, 40], [LANE1, A_Y], [ALU.x, A_Y]], 'p1', false, { arrow: false });
+    wire([[LANE2, 40], [LANE2, MUX.y + 22], [MUX.x, MUX.y + 22]], 'p2', false, { arrow: false });
+    if (usesP1 && toAlu) wire([[REG_R, tapP1], [LANE1, tapP1], [LANE1, A_Y], [ALU.x, A_Y]], 'p1', true);
+    if (usesP1 && isBranch) wire([[REG_R, tapP1], [LANE1, tapP1], [LANE1, 96], [CMP.x, 96]], 'p1', true);
+    if (usesP2 && isBranch) wire([[REG_R, tapP2], [LANE2, tapP2], [LANE2, 116], [CMP.x, 116]], 'p2', true);
+    else if (usesP2 && isMemW) wire([[REG_R, tapP2], [LANE2, tapP2], [LANE2, 440], [575, 440], [575, 335], [MEM.x, 335]], 'p2', true);
+    else if (usesP2 && !d.aluBImm) wire([[REG_R, tapP2], [LANE2, tapP2], [LANE2, MUX.y + 22], [MUX.x, MUX.y + 22]], 'p2', true);
+    // store data path is always drawn (grey when idle), so the memory has both inputs
+    wire([[LANE2, 40], [LANE2, 440], [575, 440], [575, 335], [MEM.x, 335]], 'p2', false);
+
+    wire([[MUX.x + MUX.w, B_Y], [ALU.x, B_Y]], d.aluBImm ? 'imm' : 'p2', toAlu);
+    wire([[MUX.x + MUX.w / 2, IMM.y], [MUX.x + MUX.w / 2, MUX.y + MUX.h]], 'imm', toAlu && d.aluBImm);
+
+    // ---- wires: ALU -> memory address / write back / next PC, memory -> write back
+    wire([[ALU.x + ALU.w, OUT_Y], [MEM.x, OUT_Y]], 'wb', memOn);
+    wire([[480, OUT_Y], [480, 175], [790, 175], [790, 225], [WB.x, 225]], 'wb', wbAlu);
+    wire([[MEM.x + MEM.w, 290], [WB.x, 290]], 'wb', isMemR);
+    wire([[490, 20], [490, 8], [WB.x + WB.w / 2, 8], [WB.x + WB.w / 2, WB.y]], 'wb', wbPc4);
+    if (live && d.jalr) wire([[480, OUT_Y], [480, 150], [600, 150], [600, 56]], 'wb', true);
+    dot(480, OUT_Y, 'wb', memOn || wbAlu || (live && d.jalr));
+
+    // ---- write back -> register file: along the bottom, then into the left side of the register
+    const wbOut = [WB.x + WB.w, 265];
     if (writes) {
       const y = regMid(d.rd);
-      wire(`M${wX + wW},255 H548 V545 H4 V${y} H${REG_X - 8}`, 'wb', d.rd !== 0);
-      if (d.rd === 0) text(40, 553, 'write to r0 is ignored', { size: 11, fill: '#b00020' });
-      else text(560, 535, 'write ' + hex8(t.wbValue) + ' to ' + regName(d.rd), { size: 12, fill: COLORS.wb, bold: true });
+      wire([wbOut, [888, 265], [888, 572], [20, 572], [20, y], [REG_X, y]], 'wb', d.rd !== 0);
+      if (d.rd === 0) text(40, 562, 'write to r0 is ignored', { size: 11, fill: '#b00020' });
+      else text(560, 562, 'write ' + hex8(t.wbValue) + ' to ' + regName(d.rd), { size: 12, fill: COLORS.wb, bold: true });
     } else {
-      wire(`M${wX + wW},255 H548 V545 H4 V40`, 'wb', false, { arrow: false });
+      wire([wbOut, [888, 265], [888, 572], [20, 572], [20, 40]], 'wb', false, { arrow: false });
     }
 
-    // ---- labels
-    text(lane1 - 4, 24, 'port 1', { size: 9, fill: COLORS.p1, anchor: 'middle' });
-    text(lane2 + 14, 24, 'port 2', { size: 9, fill: COLORS.p2, anchor: 'middle' });
-    if (d.illegal) text(415, 300, 'illegal instruction', { size: 14, fill: '#b00020', bold: true, anchor: 'middle' });
-    if (d.halt) text(415, 300, 'halt', { size: 14, bold: true, anchor: 'middle' });
+    if (d.illegal) text(390, 350, 'illegal instruction', { size: 14, fill: '#b00020', bold: true, anchor: 'middle' });
+    if (d.halt) text(390, 350, 'halt', { size: 14, bold: true, anchor: 'middle' });
+
+    flushWires();
   }
 
   // ---------- wiring ----------
