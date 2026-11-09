@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>CPU Playground</title>
+<style>
+  :root {
+    --p1: #1565c0;      /* read port 1 (field B) */
+    --p2: #e65100;      /* read port 2 (field C, or A for store/branch) */
+    --imm: #6a1b9a;     /* immediate */
+    --wb: #2e7d32;      /* result / write back (field A as destination) */
+    --off: #c8c8c8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: white; color: black; }
+  h1 { margin: 0; font-size: 22px; }
+  h2 { margin: 0 0 4px; font-size: 14px; }
+  .mono, textarea, table, #fields, #status { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+
+  header { padding: 8px 12px; border-bottom: 1px solid black; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  header .hint { font-size: 13px; color: #555; }
+
+  #layout { display: flex; align-items: flex-start; }
+  #left { width: 400px; flex-shrink: 0; padding: 8px 12px; border-right: 1px solid black; min-height: calc(100vh - 42px); }
+  #right { flex: 1; min-width: 0; padding: 8px 12px; }
+
+  label.title { display: block; font-weight: bold; font-size: 14px; margin: 8px 0 3px; }
+  textarea {
+    display: block; width: 100%; height: 170px; resize: vertical; font-size: 13px; padding: 4px;
+    border: 1px solid black; tab-size: 4; white-space: pre; overflow: auto;
+  }
+  textarea#datahex { height: 70px; }
+  details { margin-top: 6px; font-size: 13px; }
+  summary { cursor: pointer; }
+
+  button, select {
+    font: inherit; font-size: 14px; padding: 5px 10px; background: white; color: black;
+    border: 1px solid black; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: #eee; }
+  button:disabled { color: #aaa; border-color: #aaa; cursor: default; }
+  button.primary { background: black; color: white; }
+  button.primary:hover:not(:disabled) { background: #333; }
+  button.primary:disabled { background: #aaa; border-color: #aaa; color: white; }
+  #controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+
+  #errors { color: #b00020; font-size: 13px; min-height: 0; }
+  #errors div { margin-top: 2px; }
+
+  #listing-wrap { max-height: 300px; overflow: auto; border: 1px solid black; }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+  td, th { padding: 2px 6px; text-align: left; white-space: nowrap; }
+  th { position: sticky; top: 0; background: #eee; border-bottom: 1px solid black; font-weight: normal; }
+  tr.cur td { background: #fff3b0; font-weight: bold; }
+  tr.past td { color: #777; }
+
+  #status { font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 4px 0 6px; }
+  #status .state { padding: 1px 8px; border: 1px solid black; }
+  #status .state.halted { background: black; color: white; }
+  #status .state.trapped { background: #b00020; color: white; border-color: #b00020; }
+
+  #fields { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 4px; }
+  .field { text-align: center; }
+  .field .digits { display: flex; gap: 2px; }
+  .field .digits span {
+    display: inline-block; width: 22px; padding: 3px 0; font-size: 18px; border: 2px solid var(--c, #888);
+    background: color-mix(in srgb, var(--c, #888) 14%, white);
+  }
+  .field .name { font-size: 11px; margin-top: 2px; color: var(--c, #555); font-weight: bold; }
+  .field .role { font-size: 11px; color: #444; }
+  #asm { font-size: 20px; font-weight: bold; padding: 0 8px 0 0; }
+  #asm small { display: block; font-size: 11px; font-weight: normal; color: #555; }
+
+  #explain { border: 1px solid black; padding: 6px 8px; font-size: 14px; margin: 6px 0; min-height: 3.4em; }
+  #explain .line { margin: 1px 0; }
+  #explain b.p1 { color: var(--p1); } #explain b.p2 { color: var(--p2); }
+  #explain b.imm { color: var(--imm); } #explain b.wb { color: var(--wb); }
+
+  #diagram { width: 100%; height: auto; display: block; border: 1px solid black; }
+  #diagram text { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+
+  #bottom { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+  #bottom > div { flex: 1 1 260px; min-width: 0; }
+  pre {
+    margin: 0; border: 1px solid black; padding: 4px 6px; min-height: 90px; max-height: 160px; overflow: auto;
+    font-size: 13px; white-space: pre-wrap; word-break: break-all;
+  }
+  #mem { font-size: 13px; }
+  #mem .last { background: #c8e6c9; }
+
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; margin: 4px 0; }
+  .legend span::before { content: ""; display: inline-block; width: 18px; height: 3px; margin-right: 5px; vertical-align: middle; background: var(--c); }
+
+  footer { text-align: center; padding: 10px; font-size: 12px; color: #666; }
+
+  @media (max-width: 900px) {
+    #layout { flex-direction: column; }
+    #left { width: 100%; border-right: 0; border-bottom: 1px solid black; min-height: 0; }
+    #right { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CPU Playground</h1>
+  <span class="hint">Type machine code in hex, see what each instruction does inside the CPU, run it or step through it.</span>
+</header>
+
+<div id="layout">
+  <section id="left">
+    <label class="title" for="example">Example</label>
+    <select id="example"></select>
+
+    <label class="title" for="hex">Program (hex)</label>
+    <textarea id="hex" spellcheck="false" autocomplete="off" placeholder="One instruction per line, e.g.&#10;11100005   ; addi r1, r0, 5"></textarea>
+    <div id="errors"></div>
+    <details id="data-details">
+      <summary>Data memory (optional, hex words from address 0)</summary>
+      <textarea id="datahex" spellcheck="false" autocomplete="off"></textarea>
+    </details>
+
+    <div id="controls">
+      <button id="step" class="primary" title="Run one instruction (S)">Step</button>
+      <button id="run" title="Run until halt (R)">Run</button>
+      <button id="reset" title="Back to the start (Esc)">Reset</button>
+      <select id="speed" title="How fast Run goes">
+        <option value="1">1 / s</option>
+        <option value="4" selected>4 / s</option>
+        <option value="20">20 / s</option>
+        <option value="0">as fast as possible</option>
+      </select>
+    </div>
+
+    <h2>Instructions</h2>
+    <div id="listing-wrap">
+      <table>
+        <thead><tr><th>addr</th><th>hex</th><th>assembly</th></tr></thead>
+        <tbody id="listing"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="right">
+    <div id="status"></div>
+    <div id="fields"></div>
+    <div id="explain"></div>
+    <div class="legend">
+      <span style="--c: var(--p1)">read port 1 (field B)</span>
+      <span style="--c: var(--p2)">read port 2 (field C, or A for store / branch)</span>
+      <span style="--c: var(--imm)">immediate</span>
+      <span style="--c: var(--wb)">result / write back (to field A)</span>
+    </div>
+    <svg id="diagram" viewBox="0 0 830 560" role="img" aria-label="CPU data path"></svg>
+
+    <div id="bottom">
+      <div><h2>Console output</h2><pre id="console"></pre></div>
+      <div><h2>Data memory (words written so far)</h2><pre id="mem"></pre></div>
+    </div>
+  </section>
+</div>
+
+<footer>Developed by Merlin2LmmL in 2026. The CPU is described in <a href="../ISA.md">ISA.md</a>.</footer>
+
+<script src="emu.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

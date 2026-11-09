@@ -67,6 +67,7 @@ CPU/
   run.sh                            assemble a program and run it on the CPU
   cpu/                              the CPU and its peripherals in Verilog
   tools/asm.py                      the assembler
+  ui/                               CPU Playground: hex editor + data path diagram in the browser
   programs/                         example programs
   tests/isa_test.asm                checks every instruction
 sim.sh                              run testbenches (or a CPU program)
@@ -145,6 +146,24 @@ ended up at which address. That makes the trace a lot easier to follow.
   - *Verilog: open waveform (gtkwave)*
   - *CPU: run program with trace*
   - *CPU: run program and open waveform*
+
+## CPU Playground (in the browser)
+
+`CPU/ui/index.html` is a small web page for exploring the CPU. There is nothing to
+install: open the file in a browser (or run `python3 -m http.server` in `CPU/ui`).
+
+- Type or paste machine code in hex, one instruction per line. Everything after `;`
+  is a comment. The table below the editor shows each instruction as assembly.
+- The diagram shows the next instruction: which registers go into which ALU input
+  (blue = port 1, orange = port 2, purple = immediate) and where the result is written
+  (green), plus the data memory, the write-back multiplexer and the next PC.
+- **Step** runs one instruction (key `S`), **Run** runs until `halt` at the speed you
+  choose (key `R`), **Reset** starts over (`Esc`).
+- The examples include a loop, loads and stores, and Hello World.
+
+Its CPU model (`ui/emu.js`) follows the Verilog and gives the same results on
+`isa_test.asm`, `fib.asm` and `hello.asm`. The text screen and the keyboard are not
+in the playground yet; writes to the screen are ignored.
 
 ## Writing your own program
 
