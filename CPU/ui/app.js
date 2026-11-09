@@ -533,12 +533,14 @@ ff000000   ; halt`,
     wire([[MUX.x + MUX.w / 2, IMM.y], [MUX.x + MUX.w / 2, MUX.y + MUX.h]], 'imm', toAlu && d.aluBImm);
 
     // ---- wires: ALU -> memory address / write back / next PC, memory -> write back
-    wire([[ALU.x + ALU.w, OUT_Y], [MEM.x, OUT_Y]], 'wb', memOn);
+    const aluOutOn = memOn || wbAlu || (live && d.jalr);
+    wire([[ALU.x + ALU.w, OUT_Y], [480, OUT_Y]], 'wb', aluOutOn, { arrow: false });
+    wire([[480, OUT_Y], [MEM.x, OUT_Y]], 'wb', memOn);
     wire([[480, OUT_Y], [480, 175], [790, 175], [790, 225], [WB.x, 225]], 'wb', wbAlu);
     wire([[MEM.x + MEM.w, 290], [WB.x, 290]], 'wb', isMemR);
     wire([[490, 20], [490, 8], [WB.x + WB.w / 2, 8], [WB.x + WB.w / 2, WB.y]], 'wb', wbPc4);
     if (live && d.jalr) wire([[480, OUT_Y], [480, 150], [600, 150], [600, 56]], 'wb', true);
-    dot(480, OUT_Y, 'wb', memOn || wbAlu || (live && d.jalr));
+    dot(480, OUT_Y, 'wb', aluOutOn);
 
     // ---- write back -> register file: along the bottom, then into the left side of the register
     const wbOut = [WB.x + WB.w, 265];
