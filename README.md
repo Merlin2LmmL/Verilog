@@ -19,7 +19,9 @@ CPU. Programs can be run in one go or one instruction at a time.
 
 **Opening it**
 
-Open `CPU/ui/index.html` in any current browser. No build step and no server are
+The playground is live at **https://merlin2lmml.github.io/Verilog/**.
+
+To run it locally, open `CPU/ui/index.html` in any current browser. No build step and no server are
 needed. If you prefer to serve it, run `python3 -m http.server` inside `CPU/ui` and
 open `http://localhost:8000`.
 
