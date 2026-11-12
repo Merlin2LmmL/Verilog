@@ -18,8 +18,9 @@ on the rising edge.
    |                    +---------+   |  imm->+-----+   +-------------+             |
    |                         ^        +--store data---->| data bus    |             |
    |                         |                          | (soc.v)     |--> RAM      |
-   |                         |      loaded value        |             |--> screen   |
-   |                         +------------<-------------|             |--> io       |
+   |                         |      loaded value        |             |--> pixels   |
+   |                         +------------<-------------|             |--> text     |
+   |                         |                          |             |--> io       |
    |                         |                          +-------------+             |
    |                    wb_val = ALU result / loaded value / PC+4                   |
    |                                                                                |
@@ -37,9 +38,10 @@ on the rising edge.
 | `cpu.v` | the core: PC, branch decision, byte lanes for loads/stores, write back |
 | `imem.v` | instruction ROM, 64 KB, filled from `+text=<file>` |
 | `ram.v` | data RAM, 256 KB, byte-writable, filled from `+data=<file>` |
+| `framebuffer.v` | 128 × 96 pixel screen, 1 byte per pixel, drawn in the terminal (only what changed) and optionally saved as a PPM image |
 | `screen.v` | 40 × 25 text screen, printed to the terminal |
-| `io.v` | I/O registers: console, number output, keyboard, timer, random, LEDs |
-| `soc.v` | wires everything together; the address decoder picks RAM, screen or I/O |
+| `io.v` | I/O registers: console, number output, keyboard, timer, random, LEDs, showing the screens |
+| `soc.v` | wires everything together; the address decoder picks RAM, pixel screen, text screen or I/O |
 | `soc_sim.v` | simulation top level that runs a program (started by `../run.sh`) |
 
 The unit testbenches run like the HDLBits ones: open `alu_tb.v` and press Ctrl+Shift+B.

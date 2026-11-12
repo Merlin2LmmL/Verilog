@@ -257,6 +257,7 @@ tables, strings and level data go in `.data`.
 | Address | Size | Contents |
 |---|---|---|
 | `0x0000_0000`–`0x0003_FFFF` | 256 KB | RAM: `.data` at 0, then heap ↑ … stack ↓ from `0x0004_0000` |
+| `0xFFFD_0000`–`0xFFFD_2FFF` | 12 KB | pixel screen (framebuffer), 128 × 96 pixels, one byte per pixel |
 | `0xFFFE_0000`–`0xFFFE_0F9F` | 4000 B | text screen, 40 × 25 cells, one word per cell |
 | `0xFFFF_0000`–`0xFFFF_00FF` | 256 B | I/O registers |
 
@@ -277,6 +278,26 @@ colors 0 is shown in the terminal's default colors, so plain characters (`0x0000
 stay visible. The screen is only drawn when the program writes to `SCREEN_SHOW`, so a game
 can draw a whole frame first, then show it.
 
+### Pixel screen
+
+128 × 96 pixels. Pixel `(x, y)` is the byte at `0xFFFD_0000 + y * 128 + x`, so a row is
+`y << 7` and no multiplication is needed. Pixel format (RGB332):
+
+```
+ 7     5 4     2 1   0
+[  red  | green | blue ]
+```
+
+`0xE0` is red, `0x1C` green, `0x03` blue, `0xFF` white. `stb` sets one pixel; `st` sets
+four pixels side by side (little-endian: the lowest byte is the leftmost pixel), so
+filling a row takes 32 stores. Pixels can be read back with `ld`/`ldbu`.
+
+Like the text screen, the pixel screen only shows a new picture when the program writes
+to `FB_SHOW`. Everything drawn before that stays invisible, so frames never appear
+half-drawn. In the simulation the picture is printed to the terminal with 24-bit colors,
+two pixels per character, and only the characters that changed since the last frame are
+printed again; `+fb=file.ppm` also saves each shown frame as an image.
+
 ### I/O registers (base `0xFFFF_0000`)
 
 | Offset | Name | R/W | Function |
@@ -289,6 +310,7 @@ can draw a whole frame first, then show it.
 | `0x14` | `RANDOM` | R | a new pseudo-random 32-bit number on every read |
 | `0x18` | `SCREEN_SHOW` | W | any write: display the text screen |
 | `0x1C` | `LEDS` | R/W | 32 output bits (visible in the waveform) |
+| `0x20` | `FB_SHOW` | W | any write: display the pixel screen |
 
 Keyboard in simulation: keys come from a file (`+keys=file`, one byte per key), all waiting
 from the start. Interactive input is still open.
@@ -363,5 +385,4 @@ Hand-encoded examples:
 
 - Interrupts and an interrupt return instruction (`0xF0`–`0xFE`)
 - `mulh`/`mulhu`, halfword loads/stores
-- Pixel framebuffer as an additional peripheral
 - Pipelined implementation (the ISA has no flags and no delay slots, so it pipelines cleanly)

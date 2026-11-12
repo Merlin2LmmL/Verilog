@@ -81,6 +81,116 @@ ff000000
 ff000000   ; halt`,
       data: '',
     },
+    {
+      name: 'Pixel screen: bouncing square (run as fast as possible)',
+      text: `1fe00004   ; assembled from programs/pixels.asm, see that file for the source
+11b00000
+011b0000
+50f0005f
+1f500101
+14550101
+20115000
+165b0007
+1f60fffd
+01556000
+11650080
+38150000
+11550004
+4156fffe
+11bb0001
+11500058
+41b5fff2
+115bffa8
+17550002
+16550007
+1f600101
+14660101
+20756000
+1f600302
+14660100
+01776000
+1f800404
+14880404
+165b0007
+1f60fffd
+01556000
+11650080
+38750000
+01778000
+11550004
+4156fffd
+11bb0001
+11500060
+41b5ffeb
+11a00014
+11b0000a
+11c00002
+11d00001
+115000f0
+11eefffc
+385e0000
+011a0000
+012b0000
+1130ffff
+50f0001c
+01aac000
+430a0003
+11500076
+42a50002
+02c0c000
+01bbd000
+430b0003
+1150004e
+42b50002
+02d0d000
+011a0000
+012b0000
+113000fc
+50f0000e
+1f50ffff
+38050020
+30650010
+30750010
+02776000
+1f800000
+1488c350
+4278fffc
+305e0000
+1155ffff
+385e0000
+4150ffe3
+ff000000
+11eefffc
+38fe0000
+01410000
+1192000a
+01130000
+43300003
+01120000
+50f0000e
+16720007
+01774000
+1f80fffd
+01778000
+1187000a
+39170000
+11770001
+4178fffe
+11220001
+4129fff3
+30fe0000
+11ee0004
+510f0000
+17510005
+17610004
+16660005
+14660004
+11100003
+02115000
+04116000
+510f0000`,
+      data: '',
+    },
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -173,8 +283,13 @@ ff000000   ; halt`,
     const tick = () => {
       if (m.halted) { stop(); refresh(); return; }
       if (perSecond === 0) {
-        for (let i = 0; i < 50000 && !m.halted && m.cycles < MAX_CYCLES; i++) lastTrace = m.step();
-        if (m.cycles >= MAX_CYCLES && !m.halted) {
+        // run for about 12 ms per animation frame: as much as this computer manages while
+        // the page stays smooth. Programs that use the pixel screen may run forever (games)
+        const end = performance.now() + 12;
+        do {
+          for (let i = 0; i < 2000 && !m.halted; i++) lastTrace = m.step();
+        } while (!m.halted && performance.now() < end && (m.frames > 0 || m.cycles < MAX_CYCLES));
+        if (m.cycles >= MAX_CYCLES && m.frames === 0 && !m.halted) {
           stop();
           consoleText += `\n--- stopped after ${m.cycles} cycles, the program is still running ---\n`;
         }
@@ -199,6 +314,7 @@ ff000000   ; halt`,
     renderDiagram(t);
     renderListing();
     renderBottom();
+    renderScreen();
     $('step').disabled = m.halted;
     $('run').disabled = m.halted && timer === null;
   }
@@ -275,6 +391,12 @@ ff000000   ; halt`,
         case 'STORE':
           L.push(`memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}] = ${p2(rn(d.rs2))}  (${d.memByte ? 'low byte only' : 'one word'})`);
           L.push(`address ${p1(fmt(t.aluA))} + ${im(fmt(d.imm))} = ${hex8(t.aluY)}, stores ${p2(fmt(t.memData))}`);
+          if (t.aluY >= E.FB_BASE && t.aluY < E.FB_BASE + E.FB_W * E.FB_H) {
+            const n = t.aluY - E.FB_BASE;
+            L.push(`that's the pixel screen: ${d.memByte ? 'pixel' : '4 pixels from'} x = ${n % E.FB_W}, y = ${Math.floor(n / E.FB_W)} (visible after the next FB_SHOW)`);
+          } else if (t.aluY === 0xFFFF0020) {
+            L.push('that\'s FB_SHOW: the pixel screen shows what was drawn so far');
+          }
           break;
         case 'BRANCH': {
           const cmp = { beq: '==', bne: '!=', blt: '<', bge: '>=', bltu: '<u', bgeu: '>=u' }[d.name];
@@ -326,6 +448,28 @@ ff000000   ; halt`,
     if (keys.length > 64) s += `... and ${keys.length - 64} more\n`;
     $('mem').innerHTML = s || '(nothing written yet)';
     if (m.leds) $('mem').innerHTML += `\nLEDs: ${hex8(m.leds)}`;
+  }
+
+  // ---------- pixel screen ----------
+  // The canvas is 128 x 96 real pixels, CSS scales it up. A lookup table turns each
+  // RGB332 byte into 4 RGBA bytes at once, and the canvas is only drawn again when the
+  // program has shown a new frame, at most once per animation frame (refresh).
+  const screenCtx = $('screen').getContext('2d');
+  const screenImage = screenCtx.createImageData(E.FB_W, E.FB_H);
+  const screenPixels = new Uint32Array(screenImage.data.buffer);
+  const paletteBytes = new Uint8Array(256 * 4);
+  for (let c = 0; c < 256; c++) paletteBytes.set([...E.rgb332(c), 255], c * 4);
+  const PALETTE = new Uint32Array(paletteBytes.buffer);  // same byte order as screenPixels
+  let drawnFrames = -1;
+
+  function renderScreen() {
+    if (m.frames === drawnFrames) return;
+    const src = m.fbShown;
+    for (let i = 0; i < src.length; i++) screenPixels[i] = PALETTE[src[i]];
+    screenCtx.putImageData(screenImage, 0, 0);
+    if (drawnFrames <= 0 && m.frames > 0) $('screen-details').open = true;   // first frame
+    drawnFrames = m.frames;
+    $('screen-info').textContent = m.frames ? `frame ${m.frames}` : 'nothing shown yet: draw into 0xFFFD0000, then write to FB_SHOW (0xFFFF0020)';
   }
 
   // ---------- the diagram ----------

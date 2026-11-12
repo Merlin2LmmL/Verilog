@@ -9,6 +9,7 @@ module io (
         input             re,
         output reg [31:0] rdata,
         output            screen_show,
+        output            fb_show,
         output reg [31:0] leds
     );
 
@@ -20,6 +21,7 @@ module io (
     localparam RANDOM      = 8'h14;   // R: new random number on every read
     localparam SCREEN_SHOW = 8'h18;   // W: draw the text screen
     localparam LEDS        = 8'h1C;   // R/W
+    localparam FB_SHOW     = 8'h20;   // W: show the framebuffer
 
     reg [31:0] timer;
     reg [31:0] rng;
@@ -62,6 +64,7 @@ module io (
     endfunction
 
     assign screen_show = we && offset == SCREEN_SHOW;
+    assign fb_show     = we && offset == FB_SHOW;
 
     always @(*) begin
         case (offset)

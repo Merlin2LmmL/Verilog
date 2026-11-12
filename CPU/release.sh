@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen)
+programs=(fib hello keys screen pixels)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -63,7 +63,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 prog=${1:-}
 
 if [[ -z $prog || ! -f $here/programs/$prog.text.hex ]]; then
-  echo "usage: ./run <program> [+plain] [+trace] [+keys=file] [+max_cycles=N] [+seed=N]"
+  echo "usage: ./run <program> [+plain] [+fb=file.ppm] [+trace] [+keys=file] [+max_cycles=N] [+seed=N]"
   echo "programs: $(cd "$here/programs" && ls *.text.hex | sed 's/\.text\.hex$//' | tr '\n' ' ')"
   exit 1
 fi
@@ -92,11 +92,17 @@ Nothing to install or build. Unzip, then:
     ./run hello        Hello, World!
     ./run keys         echoes key presses in uppercase (from programs/keys.txt)
     ./run screen       a ball bouncing on the 40x25 text screen
+    ./run pixels       a square bouncing on the 128x96 pixel screen
     ./run isa_test     89 checks for every instruction, prints PASS
+
+The pixel screen is drawn in the terminal with 24-bit colors, two pixels per
+character, so the window needs to be at least 128 x 49 characters.
 
 Options:
 
-    +plain             screen without colors (for terminals that don't do them)
+    +plain             screen without colors (for terminals that don't do them),
+                       the pixel screen is then only saved with +fb
+    +fb=frame.ppm      save the pixel screen as an image (the last frame stays)
     +trace             print every instruction the CPU executes
     +keys=file.txt     your own key presses for the keys program
     +max_cycles=N      stop after N cycles
@@ -105,7 +111,7 @@ Options:
 What's in here:
 
     run                the launcher
-    cpu-sim            the CPU with its RAM, text screen and I/O, compiled with
+    cpu-sim            the CPU with its RAM, screens and I/O, compiled with
                        Verilator into one self-contained executable
     programs/          the assembled programs: .text.hex (instructions),
                        .data.hex (starting RAM), .lst (listing with the source)

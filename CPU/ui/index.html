@@ -48,6 +48,10 @@
   button.primary:disabled { background: #aaa; border-color: #aaa; color: white; }
   #controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
 
+  #screen-details { margin: 0 0 8px; }
+  #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated; }
+  #screen-info { font-size: 12px; color: #555; margin-top: 2px; }
+
   #errors { color: #b00020; font-size: 13px; min-height: 0; }
   #errors div { margin-top: 2px; }
 
@@ -137,6 +141,12 @@
         <option value="0">as fast as possible</option>
       </select>
     </div>
+
+    <details id="screen-details">
+      <summary>Pixel screen (128 × 96, opens by itself when a program uses it)</summary>
+      <canvas id="screen" width="128" height="96"></canvas>
+      <div id="screen-info"></div>
+    </details>
 
     <h2>Instructions</h2>
     <div id="listing-wrap">

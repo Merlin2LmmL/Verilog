@@ -1,4 +1,4 @@
-// JavaScript model of the CPU in ../cpu/ (decoder.v, alu.v, cpu.v, io.v), see ../ISA.md
+// JavaScript model of the CPU in ../cpu/ (decoder.v, alu.v, cpu.v, io.v, framebuffer.v), see ../ISA.md
 // Works in the browser (global CPU32) and in node (module.exports), so it can be tested.
 (function (root) {
   'use strict';
@@ -8,6 +8,9 @@
   const IO_BASE = 0xFFFF0000;
   const SCREEN_BASE = 0xFFFE0000;
   const SCREEN_END = 0xFFFE0FA0;
+  const FB_BASE = 0xFFFD0000;           // 128 x 96 pixels, one byte each (RGB332)
+  const FB_W = 128, FB_H = 96;
+  const FB_BYTES = FB_W * FB_H;
 
   const ALU_NAMES = ['pass b', 'add', 'sub', 'and', 'or', 'xor', 'shl', 'shr', 'sra', 'slt', 'sltu',
                      'mul', 'div', 'divu', 'mod', 'modu'];
@@ -186,6 +189,8 @@
       this.textLen = 0;
       this.data = new Uint8Array(RAM_BYTES);
       this.initialData = new Uint8Array(RAM_BYTES);
+      this.fb = new Uint8Array(FB_BYTES);       // what the program draws into
+      this.fbShown = new Uint8Array(FB_BYTES);  // the picture on the display (copied at FB_SHOW)
       this.onOutput = null;
       this.reset();
     }
@@ -211,6 +216,9 @@
       this.timer = 0;
       this.rng = 0x2545F491;
       this.leds = 0;
+      this.fb.fill(0);
+      this.fbShown.fill(0);
+      this.frames = 0;                    // how many times FB_SHOW was written
       this.touched = new Set();           // word indexes of RAM that were written
       this.lastWrittenReg = null;
       this.lastStore = null;
@@ -223,9 +231,13 @@
     }
 
     readWord(addr) {
-      addr = u32(addr) & ~3;
+      addr = u32(addr & ~3);              // (u32(addr) & ~3 would be negative again for I/O addresses)
       if (addr < RAM_BYTES)
         return u32(this.data[addr] | this.data[addr + 1] << 8 | this.data[addr + 2] << 16 | this.data[addr + 3] << 24);
+      if (addr >= FB_BASE && addr < FB_BASE + FB_BYTES) {
+        const i = addr - FB_BASE, f = this.fb;
+        return u32(f[i] | f[i + 1] << 8 | f[i + 2] << 16 | f[i + 3] << 24);
+      }
       if (addr >= SCREEN_BASE && addr < SCREEN_END) return 0;
       if (addr >= IO_BASE && addr < IO_BASE + 0x100) {
         switch (addr - IO_BASE) {
@@ -330,11 +342,19 @@
         }
         this.touched.add(addr >>> 2);
         this.lastStore = addr >>> 2;
+      } else if (addr >= FB_BASE && addr < FB_BASE + FB_BYTES) {
+        const i = addr - FB_BASE;
+        if (byte) {
+          this.fb[i + lane] = value & 255;
+        } else {
+          for (let k = 0; k < 4; k++) this.fb[i + k] = (value >>> (8 * k)) & 255;
+        }
       } else if (addr >= IO_BASE && addr < IO_BASE + 0x100) {
         switch (addr - IO_BASE) {
           case 0x00: this.out(String.fromCharCode(value & 255)); break;
           case 0x04: this.out(String(value | 0)); break;
           case 0x1C: this.leds = u32(value); break;
+          case 0x20: this.fbShown.set(this.fb); this.frames++; break;   // FB_SHOW
         }
       } else if (!(addr >= SCREEN_BASE && addr < SCREEN_END)) {
         this.warnings.push(`store to unmapped address ${hex8(addr)}`);
@@ -351,7 +371,13 @@
     return u32(s ^ (s << 5));
   }
 
-  const api = { Machine, decode, disasm, parseHex, alu, hex8, regName, u32, OPS, ALU_NAMES, ALU_SYMBOLS, RAM_BYTES, IMEM_WORDS };
+  // RGB332 color byte -> [red, green, blue] 0..255, the same numbers as framebuffer.v
+  function rgb332(c) {
+    return [Math.floor(((c >>> 5) & 7) * 255 / 7), Math.floor(((c >>> 2) & 7) * 255 / 7), (c & 3) * 85];
+  }
+
+  const api = { Machine, decode, disasm, parseHex, alu, hex8, regName, u32, rgb332, OPS, ALU_NAMES, ALU_SYMBOLS,
+                RAM_BYTES, IMEM_WORDS, FB_BASE, FB_W, FB_H };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CPU32 = api;
 })(typeof self !== 'undefined' ? self : this);

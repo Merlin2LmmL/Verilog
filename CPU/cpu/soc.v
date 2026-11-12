@@ -1,6 +1,6 @@
 `include "isa.vh"
 
-// cpu + ROM + RAM + screen + io, memory map in ISA.md section 7
+// cpu + ROM + RAM + framebuffer + text screen + io, memory map in ISA.md section 7
 module soc (
         input         clk,
         input         rst,
@@ -30,17 +30,26 @@ module soc (
 
     // address decoder
     wire sel_ram    = addr < `RAM_END;
+    wire sel_fb     = addr >= `FB_BASE && addr < `FB_END;
     wire sel_screen = addr >= `SCREEN_BASE && addr < `SCREEN_END;
     wire sel_io     = (addr & 32'hFFFF_FF00) == `IO_BASE;
 
-    wire [31:0] ram_rdata, screen_rdata, io_rdata;
-    wire        screen_show;
+    wire [31:0] ram_rdata, fb_rdata, screen_rdata, io_rdata;
+    wire        screen_show, fb_show;
 
     ram data_ram (
         .clk(clk),
         .addr(addr), .wdata(wdata), .wstrb(wstrb),
         .we(we && sel_ram),
         .rdata(ram_rdata)
+    );
+
+    framebuffer pixel_screen (
+        .clk(clk),
+        .index(addr[13:2]), .wdata(wdata), .wstrb(wstrb),
+        .we(we && sel_fb),
+        .rdata(fb_rdata),
+        .show(fb_show)
     );
 
     screen text_screen (
@@ -57,16 +66,18 @@ module soc (
         .we(we && sel_io), .re(re && sel_io),
         .rdata(io_rdata),
         .screen_show(screen_show),
+        .fb_show(fb_show),
         .leds(leds)
     );
 
     assign rdata = sel_ram    ? ram_rdata    :
+                   sel_fb     ? fb_rdata     :
                    sel_screen ? screen_rdata :
                    sel_io     ? io_rdata     :
                                 0;
 
     always @(posedge clk) begin
-        if (!rst && (we || re) && !(sel_ram || sel_screen || sel_io))
+        if (!rst && (we || re) && !(sel_ram || sel_fb || sel_screen || sel_io))
             $display("\nwarning: %s unmapped address %08h (PC %08h)",
                      we ? "store to" : "load from", addr, imem_addr);
     end

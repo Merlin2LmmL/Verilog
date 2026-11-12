@@ -25,6 +25,7 @@ programs/           example programs
   hello.asm         a string from .data, printed by a function
   keys.asm          keyboard input (with programs/keys.txt)
   screen.asm        colored text screen with a bouncing ball
+  pixels.asm        128x96 pixel screen: gradient, all 256 colors, a bouncing square
 tests/isa_test.asm  89 checks covering every instruction
 build/              generated files (hex, listing, waveform)
 ```
@@ -39,7 +40,7 @@ build/              generated files (hex, listing, waveform)
 ## Options
 
 ```
-./run.sh [-t] [-w] program.asm [+keys=file] [+max_cycles=N] [+seed=N] [+plain]
+./run.sh [-t] [-w] program.asm [+keys=file] [+max_cycles=N] [+seed=N] [+plain] [+fb=file]
 ```
 
 | Option | Effect |
@@ -49,7 +50,8 @@ build/              generated files (hex, listing, waveform)
 | `+keys=file` | keyboard input: every byte of the file is one key press |
 | `+max_cycles=N` | stop after N cycles (default 50 000 000) |
 | `+seed=N` | different random numbers |
-| `+plain` | print the text screen without colors, one frame after another |
+| `+plain` | print the text screen without colors, one frame after another (and don't draw the pixel screen) |
+| `+fb=file` | save the pixel screen as a PPM image every time it is shown (the file keeps the last frame) |
 
 In VS Code (Ctrl+Shift+P → Tasks: Run Task) there are also "CPU: run program with trace"
 and "CPU: run program and open waveform".
@@ -67,12 +69,14 @@ and "CPU: run program and open waveform".
 
 ## Writing programs
 
-Start from `programs/hello.asm` (functions, `.data`) or `programs/screen.asm` (text screen,
-timer). Every program that calls functions should first set up the stack: `li sp, 0x00040000`.
+Start from `programs/hello.asm` (functions, `.data`), `programs/screen.asm` (text screen,
+timer) or `programs/pixels.asm` (pixel screen). Every program that calls functions should first set up the stack: `li sp, 0x00040000`.
 Syntax, pseudo-instructions and directives: ISA.md section 6.
 
 ## Simulation speed
 
-Icarus Verilog simulates about 60 000 CPU cycles per second, which is fine for
-programs and simple games (redraw only the screen cells that change). If games
-need more, a faster simulator such as Verilator would be the next step.
+Icarus Verilog simulates about 43 000 CPU cycles per second, which is fine for
+programs and simple text screen games (redraw only the cells that change). The pixel
+demo needs about 12 million cycles, so with Icarus it takes minutes; the Verilator
+build from `release.sh` (about 2–3 million cycles per second) or the playground runs it
+in a few seconds. `tools/bench.sh` measures all three.

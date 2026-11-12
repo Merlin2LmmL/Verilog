@@ -73,6 +73,8 @@
 
 // memory map
 `define RAM_END     32'h0004_0000
+`define FB_BASE     32'hFFFD_0000
+`define FB_END      32'hFFFD_3000   // 128 * 96 pixels * 1 byte
 `define SCREEN_BASE 32'hFFFE_0000
 `define SCREEN_END  32'hFFFE_0FA0   // 40 * 25 cells * 4 bytes
 `define IO_BASE     32'hFFFF_0000

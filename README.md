@@ -35,7 +35,8 @@ open `http://localhost:8000`.
 - Initial contents of data memory can be entered in the optional *Data memory* field,
   as hex words starting at address 0.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
-  Hello World and a program that uses every instruction type.
+  Hello World, a program that uses every instruction type and a square bouncing on the
+  pixel screen.
 
 You can generate the hex for your own assembly programs with the assembler
 (`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
@@ -65,6 +66,8 @@ runs.
   show the address, the byte lane and the data going in or out of memory.
 - *Console output* shows what the program prints. *Data memory* lists every word the
   program has written, with the most recent write highlighted.
+- *Pixel screen* (under the Run button) shows the 128×96 framebuffer. It opens by
+  itself as soon as the program shows its first frame by writing to `FB_SHOW`.
 
 **Running it**
 
@@ -76,15 +79,17 @@ runs.
 | Speed menu | | 1, 4 or 20 instructions per second, or as fast as possible |
 
 The page stops by itself at `halt` and at an illegal instruction, and in the
-"as fast as possible" mode also after 20 million cycles. The program is kept in the browser's local storage, so it is still there after
-a reload.
+"as fast as possible" mode also after 20 million cycles, unless the program uses the
+pixel screen (games are allowed to run until you pause them). The program is kept in
+the browser's local storage, so it is still there after a reload.
 
 **Accuracy and limits**
 
 The CPU model in `CPU/ui/emu.js` follows the Verilog in `CPU/cpu/`. It gives the same
-results and cycle counts as the Icarus simulation for `isa_test.asm`, `fib.asm` and
-`hello.asm`. The text screen and keyboard are not implemented in the playground yet;
-writes to the screen are ignored and the keyboard reports no key.
+results and cycle counts as the Icarus simulation for `isa_test.asm`, `fib.asm`,
+`hello.asm`, `screen.asm` and `pixels.asm`, and the same pixels on the pixel screen.
+The text screen and keyboard are not implemented in the playground yet; writes to the
+text screen are ignored and the keyboard reports no key.
 
 ## What you need
 
@@ -162,8 +167,13 @@ cd CPU
 ./run.sh programs/hello.asm                        # Hello, World!
 ./run.sh programs/keys.asm +keys=programs/keys.txt # echoes the key file in uppercase
 ./run.sh programs/screen.asm                       # a ball bouncing on the text screen
+./run.sh programs/pixels.asm                       # a square bouncing on the pixel screen
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
+
+The pixel screen is drawn in the terminal with 24-bit colors, two pixels per character,
+so make the window at least 128×49 characters. With Icarus the pixel demo takes a few
+minutes; the Verilator release or the playground run it in a few seconds.
 
 There is no real keyboard yet. `keys.asm` reads its key presses from a text file,
 so put whatever you like in `programs/keys.txt`.
@@ -177,7 +187,8 @@ Some options that help when something doesn't work:
 | `+keys=file` | key presses for the program, one per byte of the file |
 | `+max_cycles=N` | stops after N cycles, in case your program never halts |
 | `+seed=N` | other random numbers |
-| `+plain` | draws the text screen without colors |
+| `+plain` | draws the text screen without colors (and the pixel screen not at all) |
+| `+fb=file.ppm` | saves the pixel screen as an image every time it is shown |
 
 With `-t`, every line shows the address, the instruction in hex and what changed:
 
@@ -250,14 +261,16 @@ All instructions, pseudo-instructions and directives are in
 | Address | What's there |
 |---|---|
 | `0x00000000`–`0x0003FFFF` | RAM (256 KB) |
+| `0xFFFD0000` | pixel screen, 128×96 pixels, one byte (RGB332) per pixel |
 | `0xFFFE0000` | text screen, 40×25 cells with 16 colors |
 | `0xFFFF0000` | console output |
 | `0xFFFF0004` | print a number |
 | `0xFFFF0008` / `0xFFFF000C` | keyboard status / key |
 | `0xFFFF0010` | timer |
 | `0xFFFF0014` | random number |
-| `0xFFFF0018` | show the screen |
+| `0xFFFF0018` | show the text screen |
 | `0xFFFF001C` | LEDs |
+| `0xFFFF0020` | show the pixel screen |
 
 More about the hardware is in [CPU/README.md](CPU/README.md) and
 [CPU/cpu/README.md](CPU/cpu/README.md).

@@ -7,6 +7,7 @@
 //   +vcd=<file>                 waveform
 //   +keys=<file> +seed=N        see io.v
 //   +plain                      screen without colors, see screen.v
+//   +fb=<file>                  save the shown framebuffer picture, see framebuffer.v
 `timescale 1ns/1ps
 `include "isa.vh"
 `include "alu.v"
@@ -15,6 +16,7 @@
 `include "cpu.v"
 `include "imem.v"
 `include "ram.v"
+`include "framebuffer.v"
 `include "screen.v"
 `include "io.v"
 `include "soc.v"
