@@ -3,6 +3,7 @@
 # ./run.sh [-t] [-w] program.asm [+keys=file] [+max_cycles=N] [+seed=N] [+plain]
 #   -t  trace every instruction
 #   -w  waveform -> build/<program>.vcd
+# Without +keys=file, what you type goes to the program (tools/keyboard.sh).
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -28,4 +29,7 @@ iverilog -g2012 -Wall -Wno-timescale -I "$here/cpu" -o "$out/soc.vvp" "$here/cpu
 
 plusargs+=("+text=$out/$name.text.hex" "+data=$out/$name.data.hex")
 (( wave )) && plusargs+=("+vcd=$out/$name.vcd")
+if [[ -t 0 && " $* " != *" +keys="* ]]; then
+  exec "$here/tools/keyboard.sh" vvp -n "$out/soc.vvp" "${plusargs[@]}" "$@"
+fi
 exec vvp -n "$out/soc.vvp" "${plusargs[@]}" "$@"

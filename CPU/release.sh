@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen pixels)
+programs=(fib hello keys screen pixels draw)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -43,6 +43,7 @@ for p in "${tests[@]}"; do
   python3 "$here/tools/asm.py" "$here/tests/$p.asm" -o "$pkg/programs/$p"
 done
 cp "$here/programs/keys.txt" "$pkg/programs/"
+cp "$here/tools/keyboard.sh" "$pkg/keyboard.sh"
 
 # newer Verilator versions print a report at the end unless +verilator+quiet is
 # given, older ones (like 5.020) reject that option, so only use it if it works
@@ -74,11 +75,14 @@ if [[ $prog == keys && " $* " != *" +keys="* ]]; then
   extra+=("+keys=$here/programs/keys.txt")   # some sample key presses
 fi
 
-exec "$here/cpu-sim" @QUIET@\
-  "+text=$here/programs/$prog.text.hex" "+data=$here/programs/$prog.data.hex" \
-  "${extra[@]}" "$@"
+args=("+text=$here/programs/$prog.text.hex" "+data=$here/programs/$prog.data.hex" "${extra[@]}" "$@")
+if [[ -t 0 && " ${args[*]} " != *" +keys="* ]]; then
+  # what you type goes to the program
+  exec "$here/keyboard.sh" "$here/cpu-sim" @QUIET@"${args[@]}"
+fi
+exec "$here/cpu-sim" @QUIET@"${args[@]}"
 EOF
-sed -i "s/@QUIET@/$quiet/" "$pkg/run"
+sed -i "s/@QUIET@/$quiet/g" "$pkg/run"
 chmod +x "$pkg/run"
 
 cat > "$pkg/README.txt" <<EOF
@@ -93,10 +97,15 @@ Nothing to install or build. Unzip, then:
     ./run keys         echoes key presses in uppercase (from programs/keys.txt)
     ./run screen       a ball bouncing on the 40x25 text screen
     ./run pixels       a square bouncing on the 128x96 pixel screen
+    ./run draw         draw on the pixel screen with the arrow keys (q quits)
     ./run isa_test     89 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per
 character, so the window needs to be at least 128 x 49 characters.
+
+What you type goes to the program while it runs (keyboard.sh does that):
+letters as ASCII, Enter = 10, Backspace = 8, the arrow keys 0x80 up,
+0x81 down, 0x82 left, 0x83 right. Ctrl+C stops the program.
 
 Options:
 
@@ -104,13 +113,14 @@ Options:
                        the pixel screen is then only saved with +fb
     +fb=frame.ppm      save the pixel screen as an image (the last frame stays)
     +trace             print every instruction the CPU executes
-    +keys=file.txt     your own key presses for the keys program
+    +keys=file.txt     key presses from a file instead of the keyboard
     +max_cycles=N      stop after N cycles
     +seed=N            other random numbers
 
 What's in here:
 
     run                the launcher
+    keyboard.sh        sends what you type to the running program
     cpu-sim            the CPU with its RAM, screens and I/O, compiled with
                        Verilator into one self-contained executable
     programs/          the assembled programs: .text.hex (instructions),

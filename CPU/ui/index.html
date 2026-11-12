@@ -50,6 +50,7 @@
 
   #screen-details { margin: 0 0 8px; }
   #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated; }
+  #screen:focus { outline: 3px solid var(--wb); outline-offset: 0; }
   #screen-info { font-size: 12px; color: #555; margin-top: 2px; }
 
   #errors { color: #b00020; font-size: 13px; min-height: 0; }
@@ -143,8 +144,8 @@
     </div>
 
     <details id="screen-details">
-      <summary>Pixel screen (128 × 96, opens by itself when a program uses it)</summary>
-      <canvas id="screen" width="128" height="96"></canvas>
+      <summary>Pixel screen and keyboard (opens by itself when a program uses them)</summary>
+      <canvas id="screen" width="128" height="96" tabindex="0" title="Click, then type: the keys go to the program (Esc to stop)"></canvas>
       <div id="screen-info"></div>
     </details>
 

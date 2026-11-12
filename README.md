@@ -35,8 +35,8 @@ open `http://localhost:8000`.
 - Initial contents of data memory can be entered in the optional *Data memory* field,
   as hex words starting at address 0.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
-  Hello World, a program that uses every instruction type and a square bouncing on the
-  pixel screen.
+  Hello World, a program that uses every instruction type, a square bouncing on the
+  pixel screen and a drawing program you control with the arrow keys.
 
 You can generate the hex for your own assembly programs with the assembler
 (`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
@@ -66,8 +66,11 @@ runs.
   show the address, the byte lane and the data going in or out of memory.
 - *Console output* shows what the program prints. *Data memory* lists every word the
   program has written, with the most recent write highlighted.
-- *Pixel screen* (under the Run button) shows the 128×96 framebuffer. It opens by
-  itself as soon as the program shows its first frame by writing to `FB_SHOW`.
+- *Pixel screen and keyboard* (under the Run button) shows the 128×96 framebuffer. It
+  opens by itself as soon as the program shows its first frame by writing to `FB_SHOW`
+  or reads the keyboard. Click the screen to type: while it has focus (green outline),
+  every key goes to the program, including `S` and `R`, and the arrow keys arrive as
+  `0x80`–`0x83`. `Esc` gives the keys back to the shortcuts.
 
 **Running it**
 
@@ -80,16 +83,16 @@ runs.
 
 The page stops by itself at `halt` and at an illegal instruction, and in the
 "as fast as possible" mode also after 20 million cycles, unless the program uses the
-pixel screen (games are allowed to run until you pause them). The program is kept in
+pixel screen or the keyboard (games are allowed to run until you pause them). The program is kept in
 the browser's local storage, so it is still there after a reload.
 
 **Accuracy and limits**
 
 The CPU model in `CPU/ui/emu.js` follows the Verilog in `CPU/cpu/`. It gives the same
 results and cycle counts as the Icarus simulation for `isa_test.asm`, `fib.asm`,
-`hello.asm`, `screen.asm` and `pixels.asm`, and the same pixels on the pixel screen.
-The text screen and keyboard are not implemented in the playground yet; writes to the
-text screen are ignored and the keyboard reports no key.
+`hello.asm`, `screen.asm`, `pixels.asm` and `draw.asm`, and the same pixels on the
+pixel screen. The text screen is not implemented in the playground yet; writes to it
+are ignored.
 
 ## What you need
 
@@ -168,6 +171,7 @@ cd CPU
 ./run.sh programs/keys.asm +keys=programs/keys.txt # echoes the key file in uppercase
 ./run.sh programs/screen.asm                       # a ball bouncing on the text screen
 ./run.sh programs/pixels.asm                       # a square bouncing on the pixel screen
+./run.sh programs/draw.asm                         # draw with the arrow keys, q quits
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
 
@@ -175,8 +179,10 @@ The pixel screen is drawn in the terminal with 24-bit colors, two pixels per cha
 so make the window at least 128×49 characters. With Icarus the pixel demo takes a few
 minutes; the Verilator release or the playground run it in a few seconds.
 
-There is no real keyboard yet. `keys.asm` reads its key presses from a text file,
-so put whatever you like in `programs/keys.txt`.
+While a program runs, what you type in the terminal goes to it: letters as ASCII,
+Enter as 10 and the arrow keys as `0x80` up, `0x81` down, `0x82` left, `0x83` right.
+Ctrl+C stops the program. With `+keys=file` the keys come from a file instead, which is
+what `keys.asm` does with `programs/keys.txt` (it stops as soon as no key is waiting).
 
 Some options that help when something doesn't work:
 
@@ -184,7 +190,7 @@ Some options that help when something doesn't work:
 |---|---|
 | `-t` | prints every instruction the CPU executes and what it changed |
 | `-w` | saves a waveform to `CPU/build/<program>.vcd` |
-| `+keys=file` | key presses for the program, one per byte of the file |
+| `+keys=file` | key presses from a file instead of the keyboard, one per byte |
 | `+max_cycles=N` | stops after N cycles, in case your program never halts |
 | `+seed=N` | other random numbers |
 | `+plain` | draws the text screen without colors (and the pixel screen not at all) |
@@ -265,7 +271,7 @@ All instructions, pseudo-instructions and directives are in
 | `0xFFFE0000` | text screen, 40×25 cells with 16 colors |
 | `0xFFFF0000` | console output |
 | `0xFFFF0004` | print a number |
-| `0xFFFF0008` / `0xFFFF000C` | keyboard status / key |
+| `0xFFFF0008` / `0xFFFF000C` | keyboard: is a key waiting / take the key |
 | `0xFFFF0010` | timer |
 | `0xFFFF0014` | random number |
 | `0xFFFF0018` | show the text screen |

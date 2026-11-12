@@ -305,15 +305,26 @@ printed again; `+fb=file.ppm` also saves each shown frame as an image.
 | `0x00` | `CONSOLE_OUT` | W | print the low byte as an ASCII character |
 | `0x04` | `PRINT_INT` | W | print the value as a signed decimal number |
 | `0x08` | `KEY_STATUS` | R | 1 if a key is waiting, else 0 |
-| `0x0C` | `KEY_DATA` | R | ASCII code of the next key (reading removes it) |
+| `0x0C` | `KEY_DATA` | R | code of the next key (reading removes it), see below |
 | `0x10` | `TIMER` | R | clock cycles since reset |
 | `0x14` | `RANDOM` | R | a new pseudo-random 32-bit number on every read |
 | `0x18` | `SCREEN_SHOW` | W | any write: display the text screen |
 | `0x1C` | `LEDS` | R/W | 32 output bits (visible in the waveform) |
 | `0x20` | `FB_SHOW` | W | any write: display the pixel screen |
 
-Keyboard in simulation: keys come from a file (`+keys=file`, one byte per key), all waiting
-from the start. Interactive input is still open.
+### Keyboard
+
+Key codes: printable keys are their ASCII code, Enter is 10, Backspace 8, and the arrow
+keys are `0x80` up, `0x81` down, `0x82` left, `0x83` right (outside ASCII, so they never
+clash with a letter). Keys wait in order until the program reads them.
+
+In the simulation the keys come from a file (`+keys=file`, one byte per key). The file is
+read while the program runs, so bytes that are added to it later still arrive; when it has
+no more bytes, it is checked again every 1000 cycles. `run.sh` and the release's `run` use
+that for a live keyboard: when started in a terminal without `+keys=`, they run the
+simulator through `tools/keyboard.sh`, which puts the terminal into single-key mode and
+appends every key you press (arrow keys translated to the codes above) to a temporary key
+file. In the playground, keys go to the program while the pixel screen has focus.
 
 ## 8. Calling convention
 

@@ -191,6 +191,133 @@ ff000000
 510f0000`,
       data: '',
     },
+    {
+      name: 'Keyboard: draw with the arrow keys (needs data)',
+      text: `1fe00004   ; assembled from programs/draw.asm, click the screen and use the arrow keys
+1fd0ffff
+11a00040
+11b00030
+11c00000
+50f0005a
+50f00041
+1f100000
+14110007
+50f0005d
+305d0008
+4050ffff
+305d000c
+11eefffc
+385e0000
+011a0000
+012b0000
+50f00040
+50f00044
+305e0000
+11ee0004
+11600080
+40560016
+11600077
+40560014
+11600081
+40560016
+11600073
+40560014
+11600082
+40560017
+11600061
+40560015
+11600083
+40560017
+11600064
+40560015
+11600020
+40560018
+11600063
+4056001b
+11600071
+4056001c
+50000019
+11bbfffe
+43b00017
+11bb0002
+50000015
+11bb0002
+1160005e
+436b0012
+11bbfffe
+50000010
+11aafffe
+43a0000e
+11aa0002
+5000000c
+11aa0002
+1160007e
+436a0009
+11aafffe
+50000007
+11cc0001
+11600007
+42c60004
+11c00000
+50000002
+50f0001c
+50f00003
+500fffc5
+ff000000
+11eefffc
+38fe0000
+011a0000
+012b0000
+113000ff
+50f0000a
+380d0020
+30fe0000
+11ee0004
+510f0000
+1f600000
+14660000
+0166c000
+32360000
+510f0000
+16620007
+01661000
+1f70fffd
+01667000
+39360000
+39360001
+39360080
+39360081
+510f0000
+1f60fffd
+1f70fffd
+14773000
+38060000
+11660004
+4167fffe
+510f0000
+32610000
+40600004
+386d0000
+11110001
+500ffffc
+510f0000`,
+      data: `1cfcf4e0
+61e3031f
+776f7272
+726f2073
+53415720
+6d203a44
+2c65766f
+61707320
+203a6563
+6f6c6f63
+63202c72
+6c63203a
+2c726165
+203a7120
+74697571
+0000000a`,
+    },
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -239,6 +366,7 @@ ff000000
     words = prog.words.map((w) => w.value);
     m.loadProgram(words, data.words.map((w) => w.value));
     consoleText = '';
+    autoOpened = false;
     buildListing();
     try { localStorage.setItem('cpu-playground', JSON.stringify({ text: $('hex').value, data: $('datahex').value })); } catch (e) { /* private window */ }
     refresh();
@@ -248,6 +376,7 @@ ff000000
     stop();
     m.reset();
     consoleText = '';
+    autoOpened = false;
     refresh();
   }
 
@@ -284,12 +413,14 @@ ff000000
       if (m.halted) { stop(); refresh(); return; }
       if (perSecond === 0) {
         // run for about 12 ms per animation frame: as much as this computer manages while
-        // the page stays smooth. Programs that use the pixel screen may run forever (games)
+        // the page stays smooth. Programs that use the pixel screen or the keyboard may run
+        // forever (games, or waiting for you to type)
         const end = performance.now() + 12;
+        const endless = () => m.frames > 0 || m.readsKeys;
         do {
           for (let i = 0; i < 2000 && !m.halted; i++) lastTrace = m.step();
-        } while (!m.halted && performance.now() < end && (m.frames > 0 || m.cycles < MAX_CYCLES));
-        if (m.cycles >= MAX_CYCLES && m.frames === 0 && !m.halted) {
+        } while (!m.halted && performance.now() < end && (endless() || m.cycles < MAX_CYCLES));
+        if (m.cycles >= MAX_CYCLES && !endless() && !m.halted) {
           stop();
           consoleText += `\n--- stopped after ${m.cycles} cycles, the program is still running ---\n`;
         }
@@ -461,15 +592,33 @@ ff000000
   for (let c = 0; c < 256; c++) paletteBytes.set([...E.rgb332(c), 255], c * 4);
   const PALETTE = new Uint32Array(paletteBytes.buffer);  // same byte order as screenPixels
   let drawnFrames = -1;
+  let autoOpened = false;      // opened the screen for this run already
+  let screenInfo = '';
 
   function renderScreen() {
-    if (m.frames === drawnFrames) return;
-    const src = m.fbShown;
-    for (let i = 0; i < src.length; i++) screenPixels[i] = PALETTE[src[i]];
-    screenCtx.putImageData(screenImage, 0, 0);
-    if (drawnFrames <= 0 && m.frames > 0) $('screen-details').open = true;   // first frame
-    drawnFrames = m.frames;
-    $('screen-info').textContent = m.frames ? `frame ${m.frames}` : 'nothing shown yet: draw into 0xFFFD0000, then write to FB_SHOW (0xFFFF0020)';
+    if (!autoOpened && (m.frames > 0 || m.readsKeys)) { $('screen-details').open = true; autoOpened = true; }
+    if (m.frames !== drawnFrames) {
+      const src = m.fbShown;
+      for (let i = 0; i < src.length; i++) screenPixels[i] = PALETTE[src[i]];
+      screenCtx.putImageData(screenImage, 0, 0);
+      drawnFrames = m.frames;
+    }
+    let info = m.frames ? `frame ${m.frames}` : 'nothing shown yet: draw into 0xFFFD0000, then write to FB_SHOW (0xFFFF0020)';
+    if (document.activeElement === $('screen')) info += ' · typing goes to the program (Esc to stop)';
+    else if (m.readsKeys) info += ' · click the screen to type, the keys go to the program';
+    if (info !== screenInfo) $('screen-info').textContent = screenInfo = info;
+  }
+
+  // keyboard: while the screen has focus, keys go to the program instead of the shortcuts
+  const KEY_CODES = { ArrowUp: 0x80, ArrowDown: 0x81, ArrowLeft: 0x82, ArrowRight: 0x83, Enter: 10, Backspace: 8 };
+  function keyForProgram(ev) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (ev.key === 'Escape') { $('screen').blur(); return; }
+    let code = KEY_CODES[ev.key];
+    if (code === undefined && ev.key.length === 1 && ev.key.charCodeAt(0) < 128) code = ev.key.charCodeAt(0);
+    if (code === undefined) return;
+    ev.preventDefault();       // no scrolling with the arrow keys or space
+    m.pushKey(code);
   }
 
   // ---------- the diagram ----------
@@ -750,8 +899,12 @@ ff000000
     $('run').addEventListener('click', toggleRun);
     $('reset').addEventListener('click', resetMachine);
     $('speed').addEventListener('change', () => { if (timer !== null) { stop(); toggleRun(); } });
+    $('screen').addEventListener('keydown', keyForProgram);
+    $('screen').addEventListener('focus', renderScreen);
+    $('screen').addEventListener('blur', renderScreen);
     document.addEventListener('keydown', (ev) => {
       if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'SELECT' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (ev.target === $('screen')) return;      // those keys are for the program
       if (ev.key === 's' || ev.key === 'S') { stop(); doStep(); }
       else if (ev.key === 'r' || ev.key === 'R') toggleRun();
       else if (ev.key === 'Escape') resetMachine();

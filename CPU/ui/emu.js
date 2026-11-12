@@ -219,6 +219,8 @@
       this.fb.fill(0);
       this.fbShown.fill(0);
       this.frames = 0;                    // how many times FB_SHOW was written
+      this.keys = [];                     // key codes waiting to be read (pushKey)
+      this.readsKeys = false;             // the program has looked at the keyboard
       this.touched = new Set();           // word indexes of RAM that were written
       this.lastWrittenReg = null;
       this.lastStore = null;
@@ -241,8 +243,8 @@
       if (addr >= SCREEN_BASE && addr < SCREEN_END) return 0;
       if (addr >= IO_BASE && addr < IO_BASE + 0x100) {
         switch (addr - IO_BASE) {
-          case 0x08: return 0;                                    // no keyboard in the browser (yet)
-          case 0x0C: return 0;
+          case 0x08: return this.keys.length ? 1 : 0;             // KEY_STATUS
+          case 0x0C: return this.keys.length ? this.keys[0] : 0;  // KEY_DATA
           case 0x10: return this.timer;
           case 0x14: return this.rng;
           case 0x1C: return this.leds;
@@ -323,7 +325,12 @@
         this.warnings.push(`misaligned ${d.memWrite ? 'st' : 'ld'} at ${hex8(t.aluY)} (PC ${hex8(this.pc)})`);
 
       if (d.memWrite) this.store(t.memAddr, t.memLane, t.p2, d.memByte);
-      if (d.memRead && t.memAddr >= IO_BASE && t.memAddr - IO_BASE === 0x14) this.rng = xorshift(this.rng);
+      if (d.memRead && t.memAddr >= IO_BASE) {
+        const reg = t.memAddr - IO_BASE;
+        if (reg === 0x14) this.rng = xorshift(this.rng);
+        if (reg === 0x08 || reg === 0x0C) this.readsKeys = true;
+        if (reg === 0x0C && this.keys.length) this.keys.shift();    // reading the key takes it
+      }
 
       if (d.regWrite && d.rd !== 0) {
         this.regs[d.rd] = t.wbValue;
@@ -362,6 +369,11 @@
     }
 
     out(s) { if (this.onOutput) this.onOutput(s); }
+
+    // a key press for the program: ASCII, or 0x80-0x83 for the arrow keys (ISA.md section 7)
+    pushKey(code) {
+      if (this.keys.length < 256) this.keys.push(code & 255);
+    }
   }
 
   function xorshift(s) {

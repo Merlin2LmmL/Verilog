@@ -26,6 +26,8 @@ programs/           example programs
   keys.asm          keyboard input (with programs/keys.txt)
   screen.asm        colored text screen with a bouncing ball
   pixels.asm        128x96 pixel screen: gradient, all 256 colors, a bouncing square
+  draw.asm          draw on the pixel screen with the arrow keys (live keyboard)
+tools/keyboard.sh   sends what you type to the running program
 tests/isa_test.asm  89 checks covering every instruction
 build/              generated files (hex, listing, waveform)
 ```
@@ -47,7 +49,7 @@ build/              generated files (hex, listing, waveform)
 |---|---|
 | `-t` | trace: print every executed instruction and what it changed |
 | `-w` | write a waveform to `build/<program>.vcd` (open: `../wave.sh build/<program>.vcd`) |
-| `+keys=file` | keyboard input: every byte of the file is one key press |
+| `+keys=file` | keyboard input from a file: every byte is one key press. Without it, what you type in the terminal goes to the program (arrow keys too, Ctrl+C stops it) |
 | `+max_cycles=N` | stop after N cycles (default 50 000 000) |
 | `+seed=N` | different random numbers |
 | `+plain` | print the text screen without colors, one frame after another (and don't draw the pixel screen) |

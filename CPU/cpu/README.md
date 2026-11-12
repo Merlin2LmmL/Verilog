@@ -40,7 +40,7 @@ on the rising edge.
 | `ram.v` | data RAM, 256 KB, byte-writable, filled from `+data=<file>` |
 | `framebuffer.v` | 128 × 96 pixel screen, 1 byte per pixel, drawn in the terminal (only what changed) and optionally saved as a PPM image |
 | `screen.v` | 40 × 25 text screen, printed to the terminal |
-| `io.v` | I/O registers: console, number output, keyboard, timer, random, LEDs, showing the screens |
+| `io.v` | I/O registers: console, number output, keyboard (read from the key file while the program runs), timer, random, LEDs, showing the screens |
 | `soc.v` | wires everything together; the address decoder picks RAM, pixel screen, text screen or I/O |
 | `soc_sim.v` | simulation top level that runs a program (started by `../run.sh`) |
 
@@ -51,5 +51,4 @@ The unit testbenches run like the HDLBits ones: open `alu_tb.v` and press Ctrl+S
 - **Pipelining:** split the cycle into stages (fetch / decode / execute / memory / write back)
   for a higher clock speed; needs forwarding and hazard handling.
 - **Interrupts:** the timer or keyboard interrupting the program (opcodes `0xF0`–`0xFE` are reserved).
-- **Interactive keyboard** for real-time games.
 - **A real multiplier/divider** circuit instead of Verilog's `*` and `/`.

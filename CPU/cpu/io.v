@@ -1,5 +1,6 @@
 // I/O registers at 0xFFFF_0000 (ISA.md section 7)
-// keys come from +keys=<file> (one byte = one key), +seed=N changes the random numbers
+// keys come from +keys=<file> (one byte = one key, read while the program runs),
+// +seed=N changes the random numbers
 module io (
         input             clk,
         input             rst,
@@ -27,32 +28,49 @@ module io (
     reg [31:0] rng;
     reg [31:0] seed;
 
-    reg [7:0]        keys [0:65535];
+    // keyboard: the key file is read while the program runs, one byte at a time, so keys
+    // that get added to the file later arrive too (tools/keyboard.sh does that with what
+    // you type). When the file has no more bytes, it is checked again every KEY_POLL cycles
+    localparam KEY_POLL = 1000;
+
     reg [8*1024-1:0] key_file;
-    integer          key_count, key_pos, fd, ch;
+    integer          key_fd, ch;
+    reg              key_waiting;    // next_key holds a key that wasn't read yet
+    reg [7:0]        next_key;
+    reg              keys_ran_out;
+    reg [31:0]       ran_out_at;
 
     initial begin
-        key_count = 0;
+        key_fd       = 0;
+        key_waiting  = 0;
+        next_key     = 0;
+        keys_ran_out = 0;
+        ran_out_at   = 0;
         if (!$value$plusargs("seed=%d", seed) || seed == 0)
             seed = 32'h2545_F491;    // xorshift can't start at 0
         if ($value$plusargs("keys=%s", key_file)) begin
-            fd = $fopen(key_file, "r");
-            if (fd == 0) begin
+            key_fd = $fopen(key_file, "r");
+            if (key_fd == 0)
                 $display("warning: cannot open key file %0s", key_file);
-            end else begin
-                ch = $fgetc(fd);
-                while (ch != -1 && key_count < 65536) begin
-                    keys[key_count] = ch;
-                    key_count = key_count + 1;
-                    ch = $fgetc(fd);
-                end
-                $fclose(fd);
-            end
         end
     end
 
-    wire       key_waiting = key_pos < key_count;
-    wire [7:0] next_key    = keys[key_pos[15:0]];
+    // get the next byte of the key file into next_key (at a clock edge)
+    task fetch_key;
+        begin
+            ch = $fgetc(key_fd);
+            if (ch == -1) begin
+                key_waiting  <= 0;
+                keys_ran_out <= 1;
+                ran_out_at   <= timer;
+                ch = $fseek(key_fd, 0, 1);   // clears end-of-file, so new bytes can be read
+            end else begin
+                next_key     <= ch[7:0];
+                key_waiting  <= 1;
+                keys_ran_out <= 0;
+            end
+        end
+    endtask
 
     function [31:0] xorshift(input [31:0] s);
         reg [31:0] t;
@@ -82,11 +100,14 @@ module io (
             timer   <= 0;
             rng     <= seed;
             leds    <= 0;
-            key_pos <= 0;
         end else begin
             timer <= timer + 1;
-            if (re && offset == KEY_DATA && key_waiting)
-                key_pos <= key_pos + 1;
+            if (key_fd != 0) begin
+                if (re && offset == KEY_DATA && key_waiting)
+                    fetch_key;                   // the key was taken, get the next one
+                else if (!key_waiting && (!keys_ran_out || timer - ran_out_at >= KEY_POLL))
+                    fetch_key;
+            end
             if (re && offset == RANDOM)
                 rng <= xorshift(rng);
             if (we) begin
