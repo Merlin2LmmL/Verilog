@@ -47,6 +47,8 @@
   button.primary:hover:not(:disabled) { background: #333; }
   button.primary:disabled { background: #aaa; border-color: #aaa; color: white; }
   #controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  #speed { width: 7.5em; font: inherit; padding: 4px 6px; }
+  #speed-label { color: var(--muted, inherit); font-size: 0.9em; }
 
   #screen-details { margin: 0 0 8px; }
   #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated; }
@@ -141,13 +143,9 @@
       <button id="step" class="primary" title="Key: S">Step</button>
       <button id="run" title="Key: R">Run</button>
       <button id="reset" title="Key: Esc">Reset</button>
-      <select id="speed" title="How fast Run goes">
-        <option value="1">1 / s</option>
-        <option value="4" selected>4 / s</option>
-        <option value="20">20 / s</option>
-        <option value="2500000">real time, 2.5 MHz</option>
-        <option value="0">as fast as possible</option>
-      </select>
+      <label id="speed-label" title="Instructions per second. 2500000 is real time (2.5 MHz), -1 is as fast as possible">
+        <input id="speed" type="number" value="4" min="-1" step="1"> instr/s
+      </label>
     </div>
 
     <details id="screen-details">

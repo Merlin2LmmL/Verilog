@@ -343,6 +343,242 @@ ff000000
       speed: '2500000',
     },
     {
+      name: 'Snake',
+      text: `; Snake. Press Run, click the screen and steer with the arrow
+; keys or WASD. Eat the red food, don't hit the wall or yourself,
+; q quits. Assembled from programs/snake.asm.
+
+1fe00004
+11eeffe0
+1f50fffd
+1f60fffd
+14663000
+38050000
+11550004
+4156fffe
+11a00000
+011a0000
+11200000
+1130006d
+50f000ad
+011a0000
+11200017
+1130006d
+50f000a9
+11aa0001
+11500020
+41a5fff6
+11a00001
+11100000
+012a0000
+1130006d
+50f000a1
+1110001f
+012a0000
+1130006d
+50f0009d
+11aa0001
+11500017
+41a5fff6
+11a0000e
+115afff2
+16550002
+1f600002
+01556000
+116a0180
+38650000
+011a0000
+1120000c
+11300014
+50f0008f
+11aa0001
+11500011
+41a5fff4
+11a00010
+11b0000c
+11c00001
+11d00000
+011a0000
+012b0000
+1130003d
+50f00084
+11500002
+385e0000
+380e0004
+380e0008
+38ce0010
+38de0014
+50f0008a
+380e000c
+1f50ffff
+30650024
+1166001e
+386e000c
+38050020
+50f0004a
+1f50ffff
+30650024
+307e000c
+02667000
+4260fffb
+11770006
+387e000c
+38ce0010
+38de0014
+011a0000
+012b0000
+11300014
+50f00069
+01aac000
+01bbd000
+164b0009
+165a0002
+01445000
+1f50fffd
+01445000
+32940000
+40900003
+115000e0
+41950025
+307e0000
+11770001
+137703ff
+387e0000
+168b0005
+0188a000
+16770002
+1f500002
+01775000
+38870000
+011a0000
+012b0000
+1130003d
+50f00050
+40900006
+305e0008
+11550001
+385e0008
+50f00058
+5000000e
+307e0004
+16570002
+1f600002
+01556000
+30850000
+1318001f
+17280005
+11300000
+50f00041
+307e0004
+11770001
+137703ff
+387e0004
+1f50ffff
+38050020
+500fffc4
+1f100000
+14110000
+1f50ffff
+32610000
+40600004
+38650000
+11110001
+500ffffc
+306e0008
+38650004
+1160000a
+38650000
+ff000000
+1f50ffff
+30650008
+40600029
+3065000c
+11700071
+4067ffee
+11700080
+40670010
+11700077
+4067000e
+11700081
+4067000f
+11700073
+4067000d
+11700082
+4067000e
+11700061
+4067000c
+11700083
+4067000d
+11700064
+4067000b
+500fffeb
+11100000
+1120ffff
+50000009
+11100000
+11200001
+50000006
+1110ffff
+11200000
+50000003
+11100001
+11200000
+307e0010
+308e0014
+01771000
+01882000
+04778000
+4070ffda
+01c10000
+01d20000
+500fffd7
+510f0000
+1f500101
+14550101
+20335000
+16420009
+16510002
+01445000
+1f50fffd
+01445000
+38340000
+38340080
+38340100
+38340180
+510f0000
+11eefffc
+38fe0000
+1f50ffff
+30650014
+17660008
+1170001e
+27167000
+11110001
+30650014
+1766000c
+11700016
+27267000
+11220001
+16420009
+16510002
+01445000
+1f50fffd
+01445000
+32640000
+4160ffef
+113000e0
+50ffffde
+30fe0000
+11ee0004
+510f0000`,
+      data: `656d6167
+65766f20
+73202c72
+65726f63
+0000203a`,
+      speed: '2500000',
+    },
+    {
       name: 'Video',
       text: `; Plays a 26 second black-and-white video at 12 frames per second.
 ; The video is compressed in data memory: every frame only stores
@@ -505,7 +741,9 @@ ff000000
     if (timer !== null) { stop(); refresh(); return; }
     if (m.halted) return;
     $('run').textContent = 'Pause';
-    const perSecond = Number($('speed').value);
+    let perSecond = Math.floor(Number($('speed').value));
+    if (!Number.isFinite(perSecond) || perSecond === 0 || perSecond < -1) perSecond = 4;
+    if (perSecond === -1) perSecond = 0;             // -1 = as fast as possible
     const realTime = perSecond === E.CLOCK_HZ;
     const batched = perSecond === 0 || realTime;     // many instructions per animation frame
     let lastTs = null, owed = 0;
@@ -539,9 +777,10 @@ ff000000
         refresh();
         if (timer !== null) timer = requestAnimationFrame(tick);
       } else {
-        lastTrace = m.step();
+        const perTick = Math.max(1, Math.round(perSecond / 100));     // above 100/s: several steps per tick
+        for (let i = 0; i < perTick && !m.halted; i++) lastTrace = m.step();
         refresh();
-        if (timer !== null) timer = setTimeout(tick, 1000 / perSecond);
+        if (timer !== null) timer = setTimeout(tick, 1000 * perTick / perSecond);
       }
     };
     timer = batched ? requestAnimationFrame(tick) : setTimeout(tick, 0);

@@ -27,6 +27,7 @@ programs/           example programs
   screen.asm        colored text screen with a bouncing ball
   pixels.asm        128x96 pixel screen: gradient, all 256 colors, a bouncing square
   draw.asm          draw on the pixel screen with the arrow keys (live keyboard)
+  snake.asm         snake on the pixel screen, steered with the arrow keys
   video.asm         plays the compressed black-and-white video in video.bin
 tools/keyboard.sh   sends what you type to the running program
 tools/video.py      turns a video into video.bin (and the playground's ui/video-data.js)
