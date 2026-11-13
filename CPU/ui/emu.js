@@ -193,12 +193,14 @@
       this.initialData = new Uint8Array(RAM_BYTES);
       this.fb = new Uint8Array(FB_BYTES);       // what the program draws into
       this.fbShown = new Uint8Array(FB_BYTES);  // the picture on the display (copied at FB_SHOW)
+      this.decoded = new Array(IMEM_WORDS);
       this.onOutput = null;
       this.reset();
     }
 
     loadProgram(words, dataWords) {
       this.text.fill(0);
+      this.decoded = new Array(IMEM_WORDS);   // decode() results for run(), by word index
       this.textLen = Math.min(words.length, IMEM_WORDS);
       for (let i = 0; i < this.textLen; i++) this.text[i] = words[i];
       this.initialData.fill(0);
@@ -306,6 +308,69 @@
         t.writeReg = d.rd;
       }
       return t;
+    }
+
+    // Runs instructions until `goal` cycles have passed (or the CPU stops). Does exactly what
+    // step() does, but without building a trace object for every instruction, and with every
+    // instruction decoded only once. That is what the Run button uses: a trace per instruction
+    // made the garbage collector stall now and then, which showed as stutter in animations.
+    run(goal) {
+      const regs = this.regs, decoded = this.decoded;
+      while (!this.halted && this.cycles < goal) {
+        const idx = this.pc >>> 2;
+        let d = idx < IMEM_WORDS ? decoded[idx] : undefined;
+        if (d === undefined) {
+          d = decode(this.fetch());
+          if (idx < IMEM_WORDS) decoded[idx] = d;
+        }
+        if (d.illegal || d.halt) {
+          this.tick();
+          this.halted = true;
+          this.trapped = d.illegal;
+          return;
+        }
+
+        const p1 = d.rs1 === null ? 0 : regs[d.rs1];
+        const p2 = d.rs2 === null ? 0 : regs[d.rs2];
+        let y = 0, nextPc = u32(this.pc + 4), wb = 0;
+        if (d.usesAlu) y = alu(d.aluOp, d.rs1 === null ? 0 : p1, d.aluBImm ? u32(d.imm) : p2);
+        if (d.branch) { if (compare(d.op, p2, p1)) nextPc = u32(this.pc + d.imm); }
+        else if (d.jal) nextPc = u32(this.pc + d.imm);
+        else if (d.jalr) nextPc = u32(y & ~3);
+        if (d.memRead || d.memWrite) {
+          const addr = u32(y & ~3), lane = y & 3;
+          if (!d.memByte && lane !== 0)
+            this.warnings.push(`misaligned ${d.memWrite ? 'st' : 'ld'} at ${hex8(y)} (PC ${hex8(this.pc)})`);
+          if (d.memWrite) this.store(addr, lane, d.memByte ? p2 & 255 : p2, d.memByte);
+          if (d.memRead) {
+            const w = this.readWord(addr);
+            if (addr >= IO_BASE) {
+              const reg = addr - IO_BASE;
+              if (reg === 0x14) this.rng = xorshift(this.rng);
+              if (reg === 0x08 || reg === 0x0C) this.readsKeys = true;
+            }
+            if (d.memByte) {
+              const byte = (w >>> (8 * lane)) & 255;
+              wb = d.memSigned ? u32((byte << 24) >> 24) : byte;
+            } else {
+              wb = w;
+            }
+            if (addr >= IO_BASE && addr - IO_BASE === 0x0C && this.keys.length) this.keys.shift();
+          }
+        }
+        if (d.regWrite && d.rd !== 0) {
+          regs[d.rd] = d.wbSel === 'mem' ? wb : d.wbSel === 'pc4' ? u32(this.pc + 4) : y;
+          this.lastWrittenReg = d.rd;
+        }
+        this.tick();                        // after the instruction ran: reads saw the old counters
+        this.pc = nextPc;
+      }
+    }
+
+    tick() {
+      this.cycles++;
+      this.timer = u32(this.timer + 1);
+      if (++this.refreshCycles === CYCLES_PER_REFRESH) { this.refreshCycles = 0; this.vsync = u32(this.vsync + 1); }
     }
 
     // run the instruction at PC. returns the trace of what it did

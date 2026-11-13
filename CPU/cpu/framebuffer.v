@@ -7,6 +7,8 @@
 //     and only the characters that changed since the last frame are printed again
 //   - +fb=<file> also saves every shown frame as a PPM image (the file has the last one)
 //   - +plain turns the terminal picture off (colors are the whole point of it)
+//   - +resize=<file>: tools/keyboard.sh adds a byte to this file whenever the terminal gets
+//     resized. Then the whole picture is drawn again (a resize scrambles what was on screen)
 module framebuffer (
         input         clk,
         input  [11:0] index,     // word index = (y * 128 + x) / 4
@@ -25,7 +27,11 @@ module framebuffer (
     reg [7:0]  shown  [0:W*H-1];     // what the terminal shows right now
     reg        ansi;
     reg        first_frame;
+    reg        any_shown;            // a picture is on the terminal
     reg        save;
+    reg [8*1024-1:0] resize_file;
+    integer    resize_fd, rch;
+    reg [13:0] resize_tick;
     reg [8*1024-1:0] file;
     integer    i;
 
@@ -37,6 +43,11 @@ module framebuffer (
         ansi        = !$test$plusargs("plain");
         save        = $value$plusargs("fb=%s", file);
         first_frame = 1;
+        any_shown   = 0;
+        resize_fd   = 0;
+        resize_tick = 0;
+        if ($value$plusargs("resize=%s", resize_file))
+            resize_fd = $fopen(resize_file, "r");
     end
 
     assign rdata = (index < WORDS) ? pixels[index] : 0;
@@ -49,9 +60,24 @@ module framebuffer (
             if (wstrb[3]) pixels[index][31:24] <= wdata[31:24];
         end
         if (show) begin
-            if (ansi) draw;
+            if (ansi) draw(0);
             if (save) save_ppm;
             first_frame = 0;
+            any_shown   = 1;
+        end
+        // every 16384 cycles: was the terminal resized? Then print the picture again
+        resize_tick <= resize_tick + 1;
+        if (resize_fd != 0 && resize_tick == 0 && ansi && any_shown) begin
+            rch = $fgetc(resize_fd);
+            if (rch != -1) begin
+                while (rch != -1)
+                    rch = $fgetc(resize_fd);
+                rch = $fseek(resize_fd, 0, 1);    // clears end-of-file, so new bytes can be read
+                first_frame = 1;
+                draw(1);
+                first_frame = 0;
+            end else
+                rch = $fseek(resize_fd, 0, 1);
         end
     end
 
@@ -68,7 +94,8 @@ module framebuffer (
     function integer green(input [7:0] c); green = c[4:2] * 255 / 7; endfunction
     function integer blue(input [7:0] c);  blue  = c[1:0] * 85;      endfunction
 
-    task draw;
+    // from_shown = 1: print what the terminal showed (again), not the picture being drawn
+    task draw(input from_shown);
         integer    x, row, cx, crow;
         reg [8:0]  fg, bg;           // colors the terminal uses right now, 256 = don't know
         reg [7:0]  top, bottom;
@@ -79,8 +106,8 @@ module framebuffer (
             fg = 256; bg = 256;
             for (row = 0; row < H / 2; row = row + 1) begin
                 for (x = 0; x < W; x = x + 1) begin
-                    top    = pixel(2 * row * W + x);
-                    bottom = pixel((2 * row + 1) * W + x);
+                    top    = from_shown ? shown[2 * row * W + x]       : pixel(2 * row * W + x);
+                    bottom = from_shown ? shown[(2 * row + 1) * W + x] : pixel((2 * row + 1) * W + x);
                     if (first_frame || top != shown[2 * row * W + x] || bottom != shown[(2 * row + 1) * W + x]) begin
                         if (row != crow || x != cx)
                             $write("\033[%0d;%0dH", row + 1, x + 1);

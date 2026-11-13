@@ -18,6 +18,10 @@ module screen (
     reg [31:0] cells [0:CELLS-1];
     reg        ansi;
     reg        first_frame;
+    reg        any_shown;
+    reg [8*1024-1:0] resize_file;
+    integer    resize_fd, rch;
+    reg [13:0] resize_tick;
     integer    i;
 
     initial begin
@@ -25,6 +29,11 @@ module screen (
             cells[i] = 0;
         ansi        = !$test$plusargs("plain");
         first_frame = 1;
+        any_shown   = 0;
+        resize_fd   = 0;
+        resize_tick = 0;
+        if ($value$plusargs("resize=%s", resize_file))
+            resize_fd = $fopen(resize_file, "r");
     end
 
     assign rdata = (index < CELLS) ? cells[index] : 0;
@@ -36,8 +45,24 @@ module screen (
             if (wstrb[2]) cells[index][23:16] <= wdata[23:16];
             if (wstrb[3]) cells[index][31:24] <= wdata[31:24];
         end
-        if (show)
+        if (show) begin
             draw;
+            any_shown = 1;
+        end
+        // every 16384 cycles: was the terminal resized (tools/keyboard.sh adds a byte to the
+        // +resize file)? Then clear it and print the screen again
+        resize_tick <= resize_tick + 1;
+        if (resize_fd != 0 && resize_tick == 0 && ansi && any_shown) begin
+            rch = $fgetc(resize_fd);
+            if (rch != -1) begin
+                while (rch != -1)
+                    rch = $fgetc(resize_fd);
+                rch = $fseek(resize_fd, 0, 1);
+                first_frame = 1;
+                draw;
+            end else
+                rch = $fseek(resize_fd, 0, 1);
+        end
     end
 
     // ansi codes: 30-37 / 90-97 text, 40-47 / 100-107 background

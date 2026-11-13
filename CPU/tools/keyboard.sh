@@ -8,11 +8,12 @@
 set -u
 
 keys=$(mktemp "${TMPDIR:-/tmp}/cpu-keys.XXXXXX")
+resize=$(mktemp "${TMPDIR:-/tmp}/cpu-resize.XXXXXX")     # gets a byte whenever the terminal is resized
 saved=$(stty -g)
 # keys arrive one by one without Enter and aren't printed; Ctrl+C still works
 stty -icanon -echo min 1
 
-"$@" "+keys=$keys" < /dev/null &
+"$@" "+keys=$keys" "+resize=$resize" < /dev/null &
 pid=$!
 
 
@@ -20,6 +21,7 @@ pid=$!
 # because `read -s` puts back its own (raw) terminal settings when it gets interrupted
 stop=0
 trap 'stop=1' INT TERM
+trap 'printf . >> "$resize"' WINCH      # the simulator then draws the screen again
 
 while (( !stop )) && kill -0 "$pid" 2> /dev/null; do
   IFS= read -rsn1 -d '' -t 0.05 c || continue
@@ -46,6 +48,6 @@ fi
 wait "$pid"
 status=$?
 stty "$saved"
-rm -f "$keys"
+rm -f "$keys" "$resize"
 (( stop )) && exit 130
 exit $status
