@@ -1,18 +1,18 @@
 ; Pixel screen demo: a color gradient, all 256 colors in a strip at the bottom and a
 ; square bouncing around. The background is drawn once; every frame only paints the
-; background over the old square, draws the new one, shows the frame and waits.
+; background over the old square, draws the new one, shows the frame and waits for the
+; next screen refresh (VSYNC), so it moves at 60 frames per second.
 
         .equ FB,          0xFFFD0000    ; 128 x 96 pixels, one byte each (RGB332)
         .equ IO,          0xFFFF0000
-        .equ TIMER,       0x10
         .equ FB_SHOW,     0x20
+        .equ VSYNC,       0x24          ; counts screen refreshes, 60 per second
         .equ W,           128
         .equ H,           96
         .equ STRIP,       H - 8         ; first row of the color strip
         .equ SIZE,        10            ; the square is SIZE x SIZE pixels
         .equ BALL,        0xFC          ; yellow: red 7, green 7, blue 0
-        .equ FRAMES,      240
-        .equ FRAME_DELAY, 50000         ; clock cycles per frame
+        .equ FRAMES,      300           ; 5 seconds
 
         .text
 start:  li   sp, 0x00040000
@@ -87,11 +87,9 @@ y_ok:
 
         li   t0, IO
         st   r0, [t0+FB_SHOW]           ; show the frame
-        ld   t1, [t0+TIMER]             ; wait FRAME_DELAY cycles
-wait:   ld   t2, [t0+TIMER]
-        sub  t2, t2, t1
-        li   t3, FRAME_DELAY
-        blt  t2, t3, wait
+        ld   t1, [t0+VSYNC]             ; wait for the next screen refresh
+wait:   ld   t2, [t0+VSYNC]
+        beq  t2, t1, wait
 
         ld   t0, [sp]
         addi t0, t0, -1

@@ -23,8 +23,16 @@ module io (
     localparam SCREEN_SHOW = 8'h18;   // W: draw the text screen
     localparam LEDS        = 8'h1C;   // R/W
     localparam FB_SHOW     = 8'h20;   // W: show the framebuffer
+    localparam VSYNC       = 8'h24;   // R: screen refreshes since reset
+
+    // the screen refreshes 60 times per second at the CPU's 2.5 MHz clock. A program that
+    // waits for VSYNC to change and then draws one frame moves exactly as smoothly as the
+    // screen, however fast the simulation really runs
+    localparam CYCLES_PER_REFRESH = 2_500_000 / 60;    // 41666
 
     reg [31:0] timer;
+    reg [31:0] vsync;
+    reg [31:0] refresh_cycles;
     reg [31:0] rng;
     reg [31:0] seed;
 
@@ -89,6 +97,7 @@ module io (
             KEY_STATUS: rdata = key_waiting;
             KEY_DATA:   rdata = key_waiting ? next_key : 0;
             TIMER:      rdata = timer;
+            VSYNC:      rdata = vsync;
             RANDOM:     rdata = rng;
             LEDS:       rdata = leds;
             default:    rdata = 0;
@@ -97,11 +106,19 @@ module io (
 
     always @(posedge clk) begin
         if (rst) begin
-            timer   <= 0;
-            rng     <= seed;
-            leds    <= 0;
+            timer          <= 0;
+            vsync          <= 0;
+            refresh_cycles <= 0;
+            rng            <= seed;
+            leds           <= 0;
         end else begin
             timer <= timer + 1;
+            if (refresh_cycles == CYCLES_PER_REFRESH - 1) begin
+                refresh_cycles <= 0;
+                vsync          <= vsync + 1;
+            end else begin
+                refresh_cycles <= refresh_cycles + 1;
+            end
             if (key_fd != 0) begin
                 if (re && offset == KEY_DATA && key_waiting)
                     fetch_key;                   // the key was taken, get the next one

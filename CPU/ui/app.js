@@ -100,14 +100,13 @@ ff000000   ; halt`,
     {
       name: 'Bouncing square',
       text: `; Draws a color gradient and all 256 colors on the screen,
-; then bounces a yellow square around for 240 frames.
-; Set the speed to as fast as possible, then press Run.
+; then bounces a yellow square around for 5 seconds.
 ; Assembled from programs/pixels.asm.
 
 1fe00004
 11b00000
 011b0000
-50f0005f
+50f0005c
 1f500101
 14550101
 20115000
@@ -147,13 +146,13 @@ ff000000   ; halt`,
 11b0000a
 11c00002
 11d00001
-115000f0
+1150012c
 11eefffc
 385e0000
 011a0000
 012b0000
 1130ffff
-50f0001c
+50f00019
 01aac000
 430a0003
 11500076
@@ -167,19 +166,16 @@ ff000000   ; halt`,
 011a0000
 012b0000
 113000fc
-50f0000e
+50f0000b
 1f50ffff
 38050020
-30650010
-30750010
-02776000
-1f800000
-1488c350
-4278fffc
+30650024
+30750024
+4076ffff
 305e0000
 1155ffff
 385e0000
-4150ffe3
+4150ffe6
 ff000000
 11eefffc
 38fe0000
@@ -211,6 +207,7 @@ ff000000
 04116000
 510f0000`,
       data: '',
+      speed: '2500000',
     },
     {
       name: 'Drawing with the keyboard',
@@ -343,6 +340,80 @@ ff000000
 203a7120
 74697571
 0000000a`,
+      speed: '2500000',
+    },
+    {
+      name: 'Video',
+      text: `; Plays a 26 second black-and-white video at 12 frames per second.
+; The video is compressed in data memory: every frame only stores
+; which pixels flip between black and white. tools/video.py makes
+; the data from any video. Assembled from programs/video.asm.
+
+1fe00004
+1fd0ffff
+1fa00000
+14aa0000
+30ca0000
+305a0004
+11eefffc
+385e0000
+11aa0008
+305d0024
+11eefffc
+385e0000
+1fb0fffd
+50f00026
+01bb1000
+50f00024
+40100018
+015b1000
+1190ffff
+40b5fffa
+136b0003
+40600006
+326b0000
+156600ff
+396b0000
+11bb0001
+500ffff9
+1175fffc
+447b0006
+306b0000
+05669000
+386b0000
+11bb0004
+500ffffb
+40b5ffeb
+326b0000
+156600ff
+396b0000
+11bb0001
+500ffffb
+380d0020
+305e0000
+306e0004
+01556000
+307d0024
+02875000
+4280fffe
+385e0000
+11ccffff
+41c0ffdb
+ff000000
+11100000
+11700000
+326a0000
+11aa0001
+1386007f
+06887000
+04118000
+11770007
+13660080
+4160fff9
+510f0000`,
+      dataScript: 'video-data.js',      // 89 KB, only loaded when this example is picked
+      dataVar: 'CPU_VIDEO_DATA',
+      speed: '2500000',
     },
   ];
 
@@ -435,17 +506,32 @@ ff000000
     if (m.halted) return;
     $('run').textContent = 'Pause';
     const perSecond = Number($('speed').value);
-    const tick = () => {
+    const realTime = perSecond === E.CLOCK_HZ;
+    const batched = perSecond === 0 || realTime;     // many instructions per animation frame
+    let lastTs = null, owed = 0;
+    const tick = (ts) => {
       if (m.halted) { stop(); refresh(); return; }
-      if (perSecond === 0) {
-        // run for about 12 ms per animation frame: as much as this computer manages while
-        // the page stays smooth. Programs that use the pixel screen or the keyboard may run
-        // forever (games, or waiting for you to type)
+      if (batched) {
+        // Run for at most 12 ms per animation frame, so the page stays smooth.
+        // Real time is locked to the monitor like a game console: every animation frame runs
+        // the CPU up to exactly the start of a screen refresh (VSYNC), so a program that draws
+        // one frame per refresh shows every frame once, without stutter. On a 60 Hz monitor
+        // that is one refresh per animation frame; other monitors get as many as the time says.
+        let goal = Infinity;
+        if (realTime) {
+          const dt = lastTs === null ? 1000 / 60 : ts - lastTs;
+          lastTs = ts;
+          let refreshes;
+          if (Math.abs(dt - 1000 / 60) < 2) refreshes = 1;
+          else { owed += dt * 60 / 1000; refreshes = Math.min(4, Math.floor(owed)); owed -= Math.floor(owed); }
+          goal = m.cycles + refreshes * E.CYCLES_PER_REFRESH - m.refreshCycles;   // next refresh boundary
+          if (refreshes === 0) goal = m.cycles;
+        }
         const end = performance.now() + 12;
         const endless = () => m.frames > 0 || m.readsKeys;
         do {
-          for (let i = 0; i < 2000 && !m.halted; i++) lastTrace = m.step();
-        } while (!m.halted && performance.now() < end && (endless() || m.cycles < MAX_CYCLES));
+          for (let i = 0; i < 2000 && !m.halted && m.cycles < goal; i++) lastTrace = m.step();
+        } while (!m.halted && m.cycles < goal && performance.now() < end && (endless() || m.cycles < MAX_CYCLES));
         if (m.cycles >= MAX_CYCLES && !endless() && !m.halted) {
           stop();
           consoleText += `\n--- stopped after ${m.cycles} cycles, the program is still running ---\n`;
@@ -458,7 +544,7 @@ ff000000
         if (timer !== null) timer = setTimeout(tick, 1000 / perSecond);
       }
     };
-    timer = perSecond === 0 ? requestAnimationFrame(tick) : setTimeout(tick, 0);
+    timer = batched ? requestAnimationFrame(tick) : setTimeout(tick, 0);
     refresh();
   }
 
@@ -908,9 +994,19 @@ ff000000
     const v = $('example').value;
     if (v === 'custom') return;
     const ex = EXAMPLES[Number(v)];
+    if (ex.dataScript && window[ex.dataVar] === undefined) {   // big data is only loaded when needed
+      const s = document.createElement('script');
+      s.src = ex.dataScript;
+      s.onload = chooseExample;
+      s.onerror = () => { $('errors').textContent = `Could not load ${ex.dataScript}`; };
+      document.head.appendChild(s);
+      return;
+    }
+    const data = ex.dataVar ? window[ex.dataVar] : ex.data;
     $('hex').value = ex.text;
-    $('datahex').value = ex.data;
-    $('data-details').open = ex.data.trim() !== '';
+    $('datahex').value = data;
+    $('data-details').open = data.trim() !== '' && data.length < 2000;
+    if (ex.speed) $('speed').value = ex.speed;
     loadFromText();
   }
 
@@ -922,7 +1018,7 @@ ff000000
       $('hex').value = saved.text;
       $('datahex').value = saved.data || '';
       $('data-details').open = ($('datahex').value.trim() !== '');
-      const idx = EXAMPLES.findIndex((ex) => ex.text === saved.text && ex.data === (saved.data || ''));
+      const idx = EXAMPLES.findIndex((ex) => ex.text === saved.text && (ex.dataVar || ex.data === (saved.data || '')));
       $('example').value = idx >= 0 ? String(idx) : 'custom';
       loadFromText();
     } else {

@@ -235,6 +235,7 @@ Register names: `r0`–`r15` or their aliases (`zero a0–a3 t0–t4 s0–s3 sp 
 | `.byte v, …` | 8-bit values |
 | `.string "hi"` | bytes of the string plus a terminating 0 |
 | `.space n` | n zero bytes |
+| `.incbin "file"` | the bytes of a file, path relative to the source file |
 | `.align n` | pad to a multiple of n bytes |
 | `.equ NAME, value` | define a constant (it can only use symbols defined above it) |
 
@@ -298,6 +299,22 @@ half-drawn. In the simulation the picture is printed to the terminal with 24-bit
 two pixels per character, and only the characters that changed since the last frame are
 printed again; `+fb=file.ppm` also saves each shown frame as an image.
 
+The CPU runs at 2.5 MHz and the screen refreshes 60 times per second, every 41 666
+cycles. `VSYNC` counts the refreshes. A program that draws a frame, writes `FB_SHOW` and
+then waits until `VSYNC` changes moves at exactly the speed of the screen, no matter how
+long the drawing took:
+
+```asm
+        ld   t1, [t0+VSYNC]     ; t0 = 0xFFFF0000
+wait:   ld   t2, [t0+VSYNC]
+        beq  t2, t1, wait
+```
+
+The playground runs one refresh worth of cycles for every refresh of your monitor, and
+the Verilator build waits for the real clock at every refresh once a program reads
+`VSYNC` (`+fast` turns that off). Icarus is slower than 2.5 MHz, so there it all runs in
+slow motion, but every frame is still the same.
+
 ### I/O registers (base `0xFFFF_0000`)
 
 | Offset | Name | R/W | Function |
@@ -311,6 +328,7 @@ printed again; `+fb=file.ppm` also saves each shown frame as an image.
 | `0x18` | `SCREEN_SHOW` | W | any write: display the text screen |
 | `0x1C` | `LEDS` | R/W | 32 output bits (visible in the waveform) |
 | `0x20` | `FB_SHOW` | W | any write: display the pixel screen |
+| `0x24` | `VSYNC` | R | screen refreshes since reset, 60 per second (one every 41 666 cycles) |
 
 ### Keyboard
 

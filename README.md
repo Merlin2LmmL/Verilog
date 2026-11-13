@@ -36,8 +36,8 @@ open `http://localhost:8000`.
   as hex words starting at address 0.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
   Hello World, a program that uses every instruction type, a square bouncing on the
-  pixel screen and a drawing program you control with the arrow keys. A comment at the
-  top of each one says what it does.
+  pixel screen, a drawing program you control with the arrow keys and a video player.
+  A comment at the top of each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
 (`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
@@ -81,7 +81,7 @@ runs.
 | Step | `S` | execute one instruction |
 | Run | `R` | run until `halt`; press again to pause |
 | Reset | `Esc` | return to the start with the program still loaded |
-| Speed menu | | 1, 4 or 20 instructions per second, or as fast as possible |
+| Speed menu | | 1, 4 or 20 instructions per second, real time (2.5 MHz, kept in step with your monitor's refreshes so animations don't stutter) or as fast as possible. The screen examples pick real time by themselves |
 | Fullscreen | `F` | show the screen as big as possible, `Esc` leaves it |
 
 The page stops by itself at `halt` and at an illegal instruction, and in the
@@ -175,6 +175,7 @@ cd CPU
 ./run.sh programs/screen.asm                       # a ball bouncing on the text screen
 ./run.sh programs/pixels.asm                       # a square bouncing on the pixel screen
 ./run.sh programs/draw.asm                         # draw with the arrow keys, q quits
+./run.sh programs/video.asm                        # a black-and-white video from RAM
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
 

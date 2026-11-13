@@ -2,12 +2,13 @@
 // (no self-check, so it's not called *_tb.v and sim.sh leaves it alone)
 //
 //   +text=<file> +data=<file>   hex files from tools/asm.py
-//   +max_cycles=N               stop after N cycles (default 50 000 000)
+//   +max_cycles=N               stop after N cycles (default 200 000 000)
 //   +trace                      print every instruction
 //   +vcd=<file>                 waveform
 //   +keys=<file> +seed=N        see io.v
 //   +plain                      screen without colors, see screen.v
 //   +fb=<file>                  save the shown framebuffer picture, see framebuffer.v
+//   +fast                       Verilator build: don't wait for the real clock (see below)
 `timescale 1ns/1ps
 `include "isa.vh"
 `include "alu.v"
@@ -46,7 +47,7 @@ module soc_sim;
             $finish(0);
         end
         if (!$value$plusargs("max_cycles=%d", max_cycles))
-            max_cycles = 50_000_000;
+            max_cycles = 200_000_000;
         trace = $test$plusargs("trace");
         if ($value$plusargs("vcd=%s", vcd_file)) begin
             $dumpfile(vcd_file);
@@ -83,5 +84,23 @@ module soc_sim;
             end
         end
     end
+
+`ifdef VERILATOR
+    // The release build is faster than the CPU's 2.5 MHz, so once a program reads VSYNC
+    // (it waits for screen refreshes, so it wants to run at the real speed) every refresh
+    // waits until 1/60 s of real time has passed. wait_for_refresh() is in release.sh.
+    // Programs that never read VSYNC still run as fast as they can.
+    import "DPI-C" function void wait_for_refresh();
+    reg uses_vsync = 0;
+    reg fast;
+    initial fast = $test$plusargs("fast");
+
+    always @(posedge clk) begin
+        if (!rst && dut.io_regs.re && dut.io_regs.offset == 8'h24)
+            uses_vsync <= 1;
+        if (uses_vsync && !fast && dut.io_regs.refresh_cycles == 0)
+            wait_for_refresh();
+    end
+`endif
 
 endmodule

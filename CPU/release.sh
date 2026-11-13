@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen pixels draw)
+programs=(fib hello keys screen pixels draw video)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -28,9 +28,24 @@ void vl_finish(const char*, int, const char*) VL_MT_UNSAFE {
     Verilated::threadContextp()->gotFinish(true);
 }
 EOF
+# wait_for_refresh() keeps the screen refreshes at 60 per second of real time (soc_sim.v)
+cat > "$work/refresh.cpp" <<'EOF'
+#include <chrono>
+#include <thread>
+extern "C" void wait_for_refresh() {
+    using clock = std::chrono::steady_clock;
+    static clock::time_point next = clock::now();
+    next += std::chrono::nanoseconds(1'000'000'000 / 60);
+    clock::time_point now = clock::now();
+    if (next > now)
+        std::this_thread::sleep_until(next);
+    else if (now - next > std::chrono::milliseconds(100))
+        next = now;     // fell behind (the computer was busy): don't race to catch up
+}
+EOF
 verilator --binary --timing -O3 -Wno-fatal -Wno-lint -Wno-style \
   -CFLAGS "-O2 -DVL_USER_FINISH" -LDFLAGS -static \
-  -I"$here/cpu" --top-module soc_sim "$here/cpu/soc_sim.v" "$work/user_finish.cpp" \
+  -I"$here/cpu" --top-module soc_sim "$here/cpu/soc_sim.v" "$work/user_finish.cpp" "$work/refresh.cpp" \
   --Mdir "$work" -o cpu-sim
 cp "$work/cpu-sim" "$pkg/cpu-sim"
 strip "$pkg/cpu-sim"
@@ -64,7 +79,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 prog=${1:-}
 
 if [[ -z $prog || ! -f $here/programs/$prog.text.hex ]]; then
-  echo "usage: ./run <program> [+plain] [+fb=file.ppm] [+trace] [+keys=file] [+max_cycles=N] [+seed=N]"
+  echo "usage: ./run <program> [+plain] [+fb=file.ppm] [+fast] [+trace] [+keys=file] [+max_cycles=N] [+seed=N]"
   echo "programs: $(cd "$here/programs" && ls *.text.hex | sed 's/\.text\.hex$//' | tr '\n' ' ')"
   exit 1
 fi
@@ -98,6 +113,7 @@ Nothing to install or build. Unzip, then:
     ./run screen       a ball bouncing on the 40x25 text screen
     ./run pixels       a square bouncing on the 128x96 pixel screen
     ./run draw         draw on the pixel screen with the arrow keys (q quits)
+    ./run video        a 26 second black-and-white video, compressed in RAM
     ./run isa_test     89 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per
@@ -112,6 +128,8 @@ Options:
     +plain             screen without colors (for terminals that don't do them),
                        the pixel screen is then only saved with +fb
     +fb=frame.ppm      save the pixel screen as an image (the last frame stays)
+    +fast              don't hold pixels, video and screen to 60 refreshes per
+                       second, run as fast as the computer can
     +trace             print every instruction the CPU executes
     +keys=file.txt     key presses from a file instead of the keyboard
     +max_cycles=N      stop after N cycles

@@ -8,6 +8,7 @@
 import argparse
 import ast
 import operator
+import os
 import re
 import sys
 
@@ -417,6 +418,20 @@ class Assembler:
             if not m:
                 raise AsmError('usage: .string "text"')
             values = unescape(m.group(1)) + [0]
+            addr = self.place(line_no)
+            self.items.append(dict(kind='bytes', section='data', addr=addr, values=values,
+                                   line_no=line_no, src=raw))
+            self.pc['data'] += len(values)
+        elif name == '.incbin':
+            m = re.fullmatch(r'"([^"]+)"', rest.strip())
+            if not m:
+                raise AsmError('usage: .incbin "file"')
+            path = os.path.join(os.path.dirname(self.path), m.group(1))   # next to the source
+            try:
+                with open(path, 'rb') as f:
+                    values = list(f.read())
+            except OSError as e:
+                raise AsmError(f'cannot read {m.group(1)}: {e.strerror}')
             addr = self.place(line_no)
             self.items.append(dict(kind='bytes', section='data', addr=addr, values=values,
                                    line_no=line_no, src=raw))

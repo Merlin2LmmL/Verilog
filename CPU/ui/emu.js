@@ -11,6 +11,8 @@
   const FB_BASE = 0xFFFD0000;           // 128 x 96 pixels, one byte each (RGB332)
   const FB_W = 128, FB_H = 96;
   const FB_BYTES = FB_W * FB_H;
+  const CLOCK_HZ = 2500000;             // the CPU's clock, the screen refreshes 60 times per second
+  const CYCLES_PER_REFRESH = Math.floor(CLOCK_HZ / 60);
 
   const ALU_NAMES = ['pass b', 'add', 'sub', 'and', 'or', 'xor', 'shl', 'shr', 'sra', 'slt', 'sltu',
                      'mul', 'div', 'divu', 'mod', 'modu'];
@@ -214,6 +216,8 @@
       this.halted = false;
       this.trapped = false;
       this.timer = 0;
+      this.vsync = 0;                     // screen refreshes, one every CYCLES_PER_REFRESH cycles
+      this.refreshCycles = 0;
       this.rng = 0x2545F491;
       this.leds = 0;
       this.fb.fill(0);
@@ -246,6 +250,7 @@
           case 0x08: return this.keys.length ? 1 : 0;             // KEY_STATUS
           case 0x0C: return this.keys.length ? this.keys[0] : 0;  // KEY_DATA
           case 0x10: return this.timer;
+          case 0x24: return this.vsync;                           // VSYNC
           case 0x14: return this.rng;
           case 0x1C: return this.leds;
         }
@@ -312,6 +317,7 @@
       this.lastStore = null;
       this.cycles++;
       this.timer = u32(this.timer + 1);
+      if (++this.refreshCycles === CYCLES_PER_REFRESH) { this.refreshCycles = 0; this.vsync = u32(this.vsync + 1); }
 
       if (d.illegal) {
         this.halted = true; this.trapped = true;
@@ -389,7 +395,7 @@
   }
 
   const api = { Machine, decode, disasm, parseHex, alu, hex8, regName, u32, rgb332, OPS, ALU_NAMES, ALU_SYMBOLS,
-                RAM_BYTES, IMEM_WORDS, FB_BASE, FB_W, FB_H };
+                RAM_BYTES, IMEM_WORDS, FB_BASE, FB_W, FB_H, CLOCK_HZ, CYCLES_PER_REFRESH };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.CPU32 = api;
 })(typeof self !== 'undefined' ? self : this);
