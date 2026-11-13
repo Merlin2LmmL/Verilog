@@ -10,8 +10,11 @@
 
   const EXAMPLES = [
     {
-      name: 'Add and multiply (4 instructions)',
-      text: `11100005   ; addi r1, r0, 5
+      name: 'Add and multiply',
+      text: `; Adds 5 and 7, then multiplies the sum by 7.
+; Step through it and watch r1 to r4 fill up.
+
+11100005   ; addi r1, r0, 5
 11200007   ; addi r2, r0, 7
 01312000   ; add  r3, r1, r2      r3 = 12
 20432000   ; mul  r4, r3, r2      r4 = 84
@@ -19,20 +22,26 @@ ff000000   ; halt`,
       data: '',
     },
     {
-      name: 'Sum of 1 to 10 (a loop)',
-      text: `11100000   ; addi r1, r0, 0     sum = 0
+      name: 'Sum of 1 to 10',
+      text: `; Adds up the numbers from 1 to 10 in a loop and
+; stores the result, 55, at address 0.
+
+11100000   ; addi r1, r0, 0     sum = 0
 11200001   ; addi r2, r0, 1     i = 1
 1130000a   ; addi r3, r0, 10    last = 10
 01112000   ; loop: add r1, r1, r2    sum += i
 11220001   ; addi r2, r2, 1     i++
 4332fffe   ; bge  r3, r2, loop  while last >= i
-38100000   ; st   r1, [r0+0]    save the sum (55) in memory
+38100000   ; st   r1, [r0+0]    save the sum in memory
 ff000000   ; halt`,
       data: '',
     },
     {
-      name: 'Fibonacci (prints 20 numbers)',
-      text: `1fa0ffff
+      name: 'Fibonacci',
+      text: `; Prints the first 20 Fibonacci numbers to the console.
+; Assembled from programs/fib.asm.
+
+1fa0ffff
 11100000
 11200001
 11300014
@@ -48,8 +57,12 @@ ff000000`,
       data: '',
     },
     {
-      name: 'Hello, World! (function call, needs data)',
-      text: `1fe00004
+      name: 'Hello World',
+      text: `; Prints "Hello, World!" with a function that prints a string.
+; The string is in the data memory field below.
+; Assembled from programs/hello.asm.
+
+1fe00004
 1f100000
 14110000
 50f00002
@@ -67,8 +80,11 @@ ff000000
 00000a21`,
     },
     {
-      name: 'Every kind of instruction (store, load, branch, jal)',
-      text: `1f100001   ; lui  r1, 1          r1 = 0x00010000
+      name: 'Every kind of instruction',
+      text: `; Uses each kind of instruction once: lui, ori, addi,
+; a word and a byte store and load, a branch and a jal.
+
+1f100001   ; lui  r1, 1          r1 = 0x00010000
 14110234   ; ori  r1, r1, 0x234  r1 = 0x00010234
 11200004   ; addi r2, r0, 4
 38120000   ; st   r1, [r2+0]     memory[4] = r1
@@ -77,13 +93,18 @@ ff000000
 32420008   ; ldbu r4, [r2+8]
 4113fffe   ; bne  r1, r3, -2     not taken
 50f00002   ; jal  lr, +2         lr = return address
-11500063   ; addi r5, r0, 99     (skipped)
+11500063   ; addi r5, r0, 99     the jal skips this one
 ff000000   ; halt`,
       data: '',
     },
     {
-      name: 'Pixel screen: bouncing square (run as fast as possible)',
-      text: `1fe00004   ; assembled from programs/pixels.asm, see that file for the source
+      name: 'Bouncing square',
+      text: `; Draws a color gradient and all 256 colors on the screen,
+; then bounces a yellow square around for 240 frames.
+; Set the speed to as fast as possible, then press Run.
+; Assembled from programs/pixels.asm.
+
+1fe00004
 11b00000
 011b0000
 50f0005f
@@ -192,8 +213,13 @@ ff000000
       data: '',
     },
     {
-      name: 'Keyboard: draw with the arrow keys (needs data)',
-      text: `1fe00004   ; assembled from programs/draw.asm, click the screen and use the arrow keys
+      name: 'Drawing with the keyboard',
+      text: `; A small drawing program. Press Run, click the screen and
+; move the pen with the arrow keys or WASD. Space changes the
+; color, c clears the screen and q quits.
+; Assembled from programs/draw.asm.
+
+1fe00004
 1fd0ffff
 11a00040
 11b00030
@@ -471,18 +497,18 @@ ff000000
     let out = `<div id="asm">${html(m.halted && !m.trapped ? 'halt' : disasm(d.instr, t.pc))}<small>next instruction at ${hex8(t.pc)}</small></div>`;
     out += box(hx.slice(0, 2), '#555', 'opcode', d.illegal ? 'illegal' : d.name);
     if (d.kind === 'JAL') {
-      out += box(hx[2], COLORS.wb, 'A', 'rd (gets PC+4)') + box(hx.slice(3), COLORS.imm, 'imm20', 'jump offset');
+      out += box(hx[2], COLORS.wb, 'A', 'rd = PC+4') + box(hx.slice(3), COLORS.imm, 'imm20', 'jump offset');
     } else if (d.kind === 'HALT' || d.illegal) {
       out += box(hx.slice(2), '#999', '', 'unused');
     } else {
       // A
-      let aRole = 'rd (result)', aColor = COLORS.wb;
+      let aRole = 'rd, result', aColor = COLORS.wb;
       if (d.kind === 'STORE') { aRole = 'data to store'; aColor = COLORS.p2; }
-      if (d.kind === 'BRANCH') { aRole = 'ra (port 2)'; aColor = COLORS.p2; }
+      if (d.kind === 'BRANCH') { aRole = 'ra, port 2'; aColor = COLORS.p2; }
       out += box(hx[2], aColor, 'A', aRole);
       // B
-      if (d.kind === 'LUI') out += box(hx[3], '#999', 'B', 'unused (0)');
-      else out += box(hx[3], COLORS.p1, 'B', d.kind === 'LOAD' || d.kind === 'STORE' || d.kind === 'JALR' ? 'base (port 1)' : 'port 1');
+      if (d.kind === 'LUI') out += box(hx[3], '#999', 'B', 'unused');
+      else out += box(hx[3], COLORS.p1, 'B', d.kind === 'LOAD' || d.kind === 'STORE' || d.kind === 'JALR' ? 'base, port 1' : 'port 1');
       // C or imm
       if (d.kind === 'R') out += box(hx[4], COLORS.p2, 'C', 'port 2') + box(hx.slice(5), '#999', '', 'unused');
       else out += box(hx.slice(4), COLORS.imm, 'imm16', 'immediate');
@@ -497,12 +523,12 @@ ff000000
     const p1 = (x) => `<b class="p1">${x}</b>`, p2 = (x) => `<b class="p2">${x}</b>`;
     const im = (x) => `<b class="imm">${x}</b>`, wb = (x) => `<b class="wb">${x}</b>`;
     if (d.illegal) {
-      L.push(`<b>${hex8(d.instr)}</b> is not an instruction (opcode ${hex8(d.instr).slice(0, 2)}). The CPU stops here.`);
+      L.push(`<b>${hex8(d.instr)}</b> is not an instruction, there is no opcode ${hex8(d.instr).slice(0, 2)}. The CPU stops here.`);
     } else if (d.halt) {
       L.push('<b>halt</b> stops the CPU.');
     } else {
       const sym = E.ALU_SYMBOLS[d.aluOp];
-      const dest = d.rd === 0 ? `${wb('r0')} (always 0, the write is ignored)` : wb(rn(d.rd));
+      const dest = wb(rn(d.rd));
       switch (d.kind) {
         case 'R':
           L.push(`${dest} = ${p1(rn(d.rs1))} ${sym} ${p2(rn(d.rs2))}`);
@@ -513,20 +539,22 @@ ff000000
           L.push(`${wb(fmt(t.aluY))} = ${p1(fmt(t.aluA))} ${sym} ${im(fmt(d.imm))}`);
           break;
         case 'LUI':
-          L.push(`${dest} = ${im(fmt(d.imm))} (the immediate shifted left by 16)`);
+          L.push(`${dest} = ${im(fmt(d.imm))}, the immediate shifted left by 16`);
           break;
         case 'LOAD':
-          L.push(`${dest} = memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}]  (${d.memByte ? (d.memSigned ? 'one byte, sign-extended' : 'one byte, zero-extended') : 'one word'})`);
+          L.push(`${dest} = memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}], ${d.memByte ? (d.memSigned ? 'one byte, sign-extended' : 'one byte, zero-extended') : 'one word'}`);
           L.push(`address ${p1(fmt(t.aluA))} + ${im(fmt(d.imm))} = ${hex8(t.aluY)}, it holds ${wb(fmt(t.loadValue))}`);
           break;
         case 'STORE':
-          L.push(`memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}] = ${p2(rn(d.rs2))}  (${d.memByte ? 'low byte only' : 'one word'})`);
+          L.push(`memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}] = ${p2(rn(d.rs2))}, ${d.memByte ? 'only the low byte' : 'one word'}`);
           L.push(`address ${p1(fmt(t.aluA))} + ${im(fmt(d.imm))} = ${hex8(t.aluY)}, stores ${p2(fmt(t.memData))}`);
           if (t.aluY >= E.FB_BASE && t.aluY < E.FB_BASE + E.FB_W * E.FB_H) {
             const n = t.aluY - E.FB_BASE;
-            L.push(`that's the pixel screen: ${d.memByte ? 'pixel' : '4 pixels from'} x = ${n % E.FB_W}, y = ${Math.floor(n / E.FB_W)} (visible after the next FB_SHOW)`);
+            const where = `x = ${n % E.FB_W}, y = ${Math.floor(n / E.FB_W)}`;
+            L.push(d.memByte ? `That's the pixel at ${where} on the screen. It shows up after the next FB_SHOW.`
+                             : `Those are 4 pixels from ${where} on the screen. They show up after the next FB_SHOW.`);
           } else if (t.aluY === 0xFFFF0020) {
-            L.push('that\'s FB_SHOW: the pixel screen shows what was drawn so far');
+            L.push('That\'s FB_SHOW, so the screen now shows everything drawn so far.');
           }
           break;
         case 'BRANCH': {
@@ -536,12 +564,13 @@ ff000000
           break;
         }
         case 'JAL':
-          L.push(`${dest} = PC + 4 (${hex8(t.pc4)}), then PC = PC ${d.imm < 0 ? '-' : '+'} ${Math.abs(d.imm)} = ${hex8(t.nextPc)}`);
+          L.push(`${dest} = PC + 4 = ${hex8(t.pc4)}, then PC = PC ${d.imm < 0 ? '-' : '+'} ${Math.abs(d.imm)} = ${hex8(t.nextPc)}`);
           break;
         case 'JALR':
-          L.push(`${dest} = PC + 4 (${hex8(t.pc4)}), then PC = ${p1(rn(d.rs1))} + ${im(fmt(d.imm))} = ${hex8(t.nextPc)}`);
+          L.push(`${dest} = PC + 4 = ${hex8(t.pc4)}, then PC = ${p1(rn(d.rs1))} + ${im(fmt(d.imm))} = ${hex8(t.nextPc)}`);
           break;
       }
+      if (d.regWrite && d.rd === 0) L.push('r0 is always 0, so the result gets thrown away.');
     }
     $('explain').innerHTML = L.map((l) => `<div class="line">${l}</div>`).join('') +
       (words.length === 0 ? '<div class="line">Type some hex on the left, or pick an example.</div>' : '');
@@ -577,7 +606,7 @@ ff000000
       s += (k === m.lastStore ? `<span class="last">${line}</span>` : line) + '\n';
     }
     if (keys.length > 64) s += `... and ${keys.length - 64} more\n`;
-    $('mem').innerHTML = s || '(nothing written yet)';
+    $('mem').innerHTML = s || 'Nothing written yet';
     if (m.leds) $('mem').innerHTML += `\nLEDs: ${hex8(m.leds)}`;
   }
 
@@ -603,10 +632,20 @@ ff000000
       screenCtx.putImageData(screenImage, 0, 0);
       drawnFrames = m.frames;
     }
-    let info = m.frames ? `frame ${m.frames}` : 'nothing shown yet: draw into 0xFFFD0000, then write to FB_SHOW (0xFFFF0020)';
-    if (document.activeElement === $('screen')) info += ' · typing goes to the program (Esc to stop)';
-    else if (m.readsKeys) info += ' · click the screen to type, the keys go to the program';
+    let info = m.frames ? `Frame ${m.frames}` : 'Empty. Programs draw at 0xFFFD0000 and show it with FB_SHOW at 0xFFFF0020.';
+    if (document.activeElement === $('screen')) info += ' · Keys go to the program, Esc stops that';
+    else if (m.readsKeys) info += ' · Click the screen to type';
     if (info !== screenInfo) $('screen-info').textContent = screenInfo = info;
+  }
+
+  // fullscreen: the box around the canvas goes fullscreen, the CSS makes the canvas
+  // as big as fits. The canvas gets the focus, so the keys go to the program right away
+  function toggleFullscreen() {
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const box = $('screen-box');
+    if (!box.requestFullscreen) return;
+    $('screen-details').open = true;
+    box.requestFullscreen().then(() => $('screen').focus()).catch(() => { /* not allowed here */ });
   }
 
   // keyboard: while the screen has focus, keys go to the program instead of the shortcuts
@@ -902,12 +941,18 @@ ff000000
     $('screen').addEventListener('keydown', keyForProgram);
     $('screen').addEventListener('focus', renderScreen);
     $('screen').addEventListener('blur', renderScreen);
+    $('screen').addEventListener('dblclick', toggleFullscreen);
+    $('fullscreen').addEventListener('click', toggleFullscreen);
+    document.addEventListener('fullscreenchange', () => {
+      $('fullscreen').textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
+    });
     document.addEventListener('keydown', (ev) => {
       if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'SELECT' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
       if (ev.target === $('screen')) return;      // those keys are for the program
       if (ev.key === 's' || ev.key === 'S') { stop(); doStep(); }
       else if (ev.key === 'r' || ev.key === 'R') toggleRun();
       else if (ev.key === 'Escape') resetMachine();
+      else if (ev.key === 'f' || ev.key === 'F') toggleFullscreen();
     });
   }
 

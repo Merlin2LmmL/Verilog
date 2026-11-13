@@ -27,7 +27,7 @@ open `http://localhost:8000`.
 
 **Entering a program**
 
-- Type or paste the program into the *Program (hex)* field, one 32-bit instruction
+- Type or paste the program into the *Program* field, one 32-bit instruction in hex
   per line, for example `01312000` for `add r3, r1, r2`. A `0x` prefix is optional.
 - Everything after `;`, `#` or `//` is a comment.
 - The *Instructions* table below the editor shows the address, the hex word and the
@@ -36,7 +36,8 @@ open `http://localhost:8000`.
   as hex words starting at address 0.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
   Hello World, a program that uses every instruction type, a square bouncing on the
-  pixel screen and a drawing program you control with the arrow keys.
+  pixel screen and a drawing program you control with the arrow keys. A comment at the
+  top of each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
 (`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
@@ -64,13 +65,14 @@ runs.
 
 - Branches use the comparator and show whether they are taken. Loads and stores
   show the address, the byte lane and the data going in or out of memory.
-- *Console output* shows what the program prints. *Data memory* lists every word the
+- *Console* shows what the program prints. *Memory writes* lists every word the
   program has written, with the most recent write highlighted.
-- *Pixel screen and keyboard* (under the Run button) shows the 128×96 framebuffer. It
-  opens by itself as soon as the program shows its first frame by writing to `FB_SHOW`
-  or reads the keyboard. Click the screen to type: while it has focus (green outline),
-  every key goes to the program, including `S` and `R`, and the arrow keys arrive as
-  `0x80`–`0x83`. `Esc` gives the keys back to the shortcuts.
+- *Screen*, under the Run button, shows the 128×96 framebuffer. It opens by itself as
+  soon as the program shows its first frame by writing to `FB_SHOW` or reads the
+  keyboard. Click the screen to type: while it has a green outline, every key goes to
+  the program, including `S` and `R`, and the arrow keys arrive as `0x80`–`0x83`.
+  `Esc` gives the keys back to the shortcuts. *Fullscreen*, `F` or a double click on
+  the screen make it fill the whole monitor, with the keys going to the program.
 
 **Running it**
 
@@ -80,6 +82,7 @@ runs.
 | Run | `R` | run until `halt`; press again to pause |
 | Reset | `Esc` | return to the start with the program still loaded |
 | Speed menu | | 1, 4 or 20 instructions per second, or as fast as possible |
+| Fullscreen | `F` | show the screen as big as possible, `Esc` leaves it |
 
 The page stops by itself at `halt` and at an illegal instruction, and in the
 "as fast as possible" mode also after 20 million cycles, unless the program uses the

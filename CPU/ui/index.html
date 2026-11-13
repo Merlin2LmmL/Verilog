@@ -51,7 +51,13 @@
   #screen-details { margin: 0 0 8px; }
   #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated; }
   #screen:focus { outline: 3px solid var(--wb); outline-offset: 0; }
-  #screen-info { font-size: 12px; color: #555; margin-top: 2px; }
+  #screen-bar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 4px; }
+  #screen-info { font-size: 12px; color: #555; }
+  #screen-bar button { font-size: 12px; padding: 2px 8px; flex-shrink: 0; }
+  /* fullscreen: the screen as big as it fits, still 4:3 */
+  #screen-box:fullscreen { background: black; display: flex; align-items: center; justify-content: center; }
+  #screen-box:fullscreen #screen { width: min(100vw, calc(100vh * 4 / 3)); height: auto; margin: 0; border: 0; }
+  #screen-box:fullscreen #screen:focus { outline: none; }
 
   #errors { color: #b00020; font-size: 13px; min-height: 0; }
   #errors div { margin-top: 2px; }
@@ -123,18 +129,18 @@
     <label class="title" for="example">Example</label>
     <select id="example"></select>
 
-    <label class="title" for="hex">Program (hex)</label>
-    <textarea id="hex" spellcheck="false" autocomplete="off" placeholder="One instruction per line, e.g.&#10;11100005   ; addi r1, r0, 5"></textarea>
+    <label class="title" for="hex">Program</label>
+    <textarea id="hex" spellcheck="false" autocomplete="off" placeholder="One instruction in hex per line, like&#10;11100005   ; addi r1, r0, 5"></textarea>
     <div id="errors"></div>
     <details id="data-details">
-      <summary>Data memory (optional, hex words from address 0)</summary>
-      <textarea id="datahex" spellcheck="false" autocomplete="off"></textarea>
+      <summary>Data memory</summary>
+      <textarea id="datahex" spellcheck="false" autocomplete="off" placeholder="Hex words, loaded from address 0"></textarea>
     </details>
 
     <div id="controls">
-      <button id="step" class="primary" title="Run one instruction (S)">Step</button>
-      <button id="run" title="Run until halt (R)">Run</button>
-      <button id="reset" title="Back to the start (Esc)">Reset</button>
+      <button id="step" class="primary" title="Key: S">Step</button>
+      <button id="run" title="Key: R">Run</button>
+      <button id="reset" title="Key: Esc">Reset</button>
       <select id="speed" title="How fast Run goes">
         <option value="1">1 / s</option>
         <option value="4" selected>4 / s</option>
@@ -144,9 +150,14 @@
     </div>
 
     <details id="screen-details">
-      <summary>Pixel screen and keyboard (opens by itself when a program uses them)</summary>
-      <canvas id="screen" width="128" height="96" tabindex="0" title="Click, then type: the keys go to the program (Esc to stop)"></canvas>
-      <div id="screen-info"></div>
+      <summary>Screen</summary>
+      <div id="screen-box">
+        <canvas id="screen" width="128" height="96" tabindex="0" title="Click it and type to send keys to the program"></canvas>
+      </div>
+      <div id="screen-bar">
+        <span id="screen-info"></span>
+        <button id="fullscreen" title="Key: F">Fullscreen</button>
+      </div>
     </details>
 
     <h2>Instructions</h2>
@@ -163,16 +174,16 @@
     <div id="fields"></div>
     <div id="explain"></div>
     <div class="legend">
-      <span style="--c: var(--p1)">read port 1 (field B)</span>
-      <span style="--c: var(--p2)">read port 2 (field C, or A for store / branch)</span>
+      <span style="--c: var(--p1)">read port 1, field B</span>
+      <span style="--c: var(--p2)">read port 2, field C or A for stores and branches</span>
       <span style="--c: var(--imm)">immediate</span>
-      <span style="--c: var(--wb)">result / write back (to field A)</span>
+      <span style="--c: var(--wb)">result, written back to field A</span>
     </div>
     <div id="diagram-wrap"><svg id="diagram" viewBox="0 0 910 590" preserveAspectRatio="xMidYMid meet" role="img" aria-label="CPU data path"></svg></div>
 
     <div id="bottom">
-      <div><h2>Console output</h2><pre id="console"></pre></div>
-      <div><h2>Data memory (words written so far)</h2><pre id="mem"></pre></div>
+      <div><h2>Console</h2><pre id="console"></pre></div>
+      <div><h2>Memory writes</h2><pre id="mem"></pre></div>
     </div>
   </section>
 </div>
