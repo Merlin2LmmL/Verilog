@@ -113,7 +113,7 @@ Nothing to install or build. Unzip, then:
     ./run screen       a ball bouncing on the 40x25 text screen
     ./run pixels       a square bouncing on the 128x96 pixel screen
     ./run draw         draw on the pixel screen with the arrow keys (q quits)
-    ./run snake        snake: arrow keys or WASD, q quits
+    ./run snake        snake with a menu for size, speed and apples (arrows or WASD, q quits)
     ./run video        a 26 second black-and-white video, compressed in RAM
     ./run isa_test     89 checks for every instruction, prints PASS
 

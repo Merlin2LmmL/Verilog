@@ -175,7 +175,7 @@ cd CPU
 ./run.sh programs/screen.asm                       # a ball bouncing on the text screen
 ./run.sh programs/pixels.asm                       # a square bouncing on the pixel screen
 ./run.sh programs/draw.asm                         # draw with the arrow keys, q quits
-./run.sh programs/snake.asm                        # snake, arrow keys or WASD, q quits
+./run.sh programs/snake.asm                        # snake with a settings menu, arrow keys or WASD, q quits
 ./run.sh programs/video.asm                        # a black-and-white video from RAM
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
