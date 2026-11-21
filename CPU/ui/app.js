@@ -1782,5 +1782,27 @@ ff000000
     });
   }
 
-  init();
+  // the bigger example programs are assembled by tools/mkexamples.py into examples.bin,
+  // so their hex does not have to sit in this file (format: see that script)
+  function loadPackedExamples() {
+    return fetch('examples.bin').then((r) => (r.ok ? r.arrayBuffer() : null)).then((buf) => {
+      if (!buf) return;
+      const v = new DataView(buf), td = new TextDecoder();
+      let p = 8;                                   // after "CPUEXAM1"
+      const u32 = () => { const x = v.getUint32(p, true); p += 4; return x; };
+      const hex = (n) => { const out = []; for (let i = 0; i < n; i++) out.push(u32().toString(16).padStart(8, '0')); return out.join('\n'); };
+      const str = (n) => { const t = td.decode(new Uint8Array(buf, p, n)); p += n; return t; };
+      const count = u32();
+      for (let k = 0; k < count; k++) {
+        const nl = v.getUint16(p, true); p += 2;
+        const name = str(nl);
+        const header = str(u32());
+        const nt = u32(), nd = u32();
+        const text = header + '\n\n' + hex(nt), data = hex(nd);
+        EXAMPLES.push({ name, text, data, speed: '2500000' });
+      }
+    }).catch(() => { /* no examples.bin (or opened from a file): only the built-in examples */ });
+  }
+
+  loadPackedExamples().then(init);
 })();

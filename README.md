@@ -36,7 +36,8 @@ open `http://localhost:8000`.
   as hex words starting at address 0.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
   Hello World, a program that uses every instruction type, a square bouncing on the
-  pixel screen, a drawing program and snake you control with the arrow keys and a video player.
+  pixel screen, a drawing program, snake you control with the arrow keys, a video player,
+  a Mandelbrot zoom.
   A comment at the top of each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
@@ -177,6 +178,7 @@ cd CPU
 ./run.sh programs/draw.asm                         # draw with the arrow keys, q quits
 ./run.sh programs/snake.asm                        # snake with a settings menu, arrow keys or WASD, q quits
 ./run.sh programs/video.asm                        # a black-and-white video from RAM
+./run.sh programs/mandelbrot.asm                   # a continuous zoom into the Mandelbrot set
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
 
