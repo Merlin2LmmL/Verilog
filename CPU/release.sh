@@ -115,7 +115,7 @@ Nothing to install or build. Unzip, then:
     ./run draw         draw on the pixel screen with the arrow keys (q quits)
     ./run snake        snake with a menu for size, speed and apples (arrows or WASD, q quits)
     ./run video        a 26 second black-and-white video, compressed in RAM
-    ./run isa_test     89 checks for every instruction, prints PASS
+    ./run isa_test     101 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per
 character, so the window needs to be at least 128 x 49 characters.

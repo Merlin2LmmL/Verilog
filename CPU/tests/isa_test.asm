@@ -138,6 +138,25 @@ start:  li   sp, 0x00040000
         mul  t3, r5, r6
         li   t4, 97406784
         call check
+        li   r5, 0x10000
+        mulhu t3, r5, r5            ; high half of 2^32
+        li   t4, 1
+        call check
+        li   r5, 0x80000000
+        mulh t3, r5, r5             ; (-2^31)^2 = 2^62
+        li   t4, 0x40000000
+        call check
+        mulhu t3, r5, r5            ; 2^31 * 2^31 unsigned too
+        li   t4, 0x40000000
+        call check
+        li   r5, -21
+        li   r6, 4
+        mulh t3, r5, r6             ; -84 -> high word is -1
+        li   t4, -1
+        call check
+        mulhu t3, r5, r6            ; 0xFFFFFFEB * 4 -> high word is 3
+        li   t4, 3
+        call check
         li   r5, -21
         li   r6, 4
         div  t3, r5, r6             ; rounds toward zero
@@ -213,6 +232,34 @@ start:  li   sp, 0x00040000
         call check
         ldbu t3, [r5+3]
         li   t4, 0x11
+        call check
+        la   r5, words              ; halfwords
+        ldhu t3, [r5+0]
+        li   t4, 0x3344
+        call check
+        ldhu t3, [r5+2]
+        li   t4, 0x1122
+        call check
+        ldhu t3, [r5+6]
+        li   t4, 0x8000
+        call check
+        ldh  t3, [r5+6]             ; sign-extended
+        li   t4, -32768
+        call check
+        ldh  t3, [r5+2]
+        li   t4, 0x1122
+        call check
+        la   r5, buf
+        li   r6, 0x1BEEF            ; only the low halfword (0xBEEF) is stored
+        sth  r6, [r5+8]
+        li   r6, 0x1234
+        sth  r6, [r5+10]
+        ld   t3, [r5+8]
+        li   t4, 0x1234BEEF
+        call check
+        sth  r0, [r5+8]             ; the other halfword stays
+        ld   t3, [r5+8]
+        li   t4, 0x12340000
         call check
         la   r5, buf
         li   r6, 0xCAFEBABE

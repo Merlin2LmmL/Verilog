@@ -4,14 +4,14 @@
 module alu_tb;
 
     reg  [31:0] a, b;
-    reg  [3:0]  op;
+    reg  [4:0]  op;
     wire [31:0] y;
     integer errors = 0;
 
     alu dut (.a(a), .b(b), .op(op), .y(y));
 
     task check;
-        input [3:0]  t_op;
+        input [4:0]  t_op;
         input [31:0] t_a, t_b, expected;
         begin
             op = t_op;
@@ -61,6 +61,13 @@ module alu_tb;
         check(`ALU_MOD,   32'h8000_0000, -1, 0);
         check(`ALU_MODU,  32'hFFFF_FFFF, 10, 5);
         check(`ALU_MODU,  -21, 0, -21);
+        check(`ALU_MULH,  32'h8000_0000, 32'h8000_0000, 32'h4000_0000);
+        check(`ALU_MULH,  -21, 4, 32'hFFFF_FFFF);
+        check(`ALU_MULH,  7, -3, 32'hFFFF_FFFF);
+        check(`ALU_MULH,  32'h0001_0000, 32'h0001_0000, 1);
+        check(`ALU_MULHU, 32'hFFFF_FFFF, 32'hFFFF_FFFF, 32'hFFFF_FFFE);
+        check(`ALU_MULHU, -21, 4, 3);
+        check(`ALU_MULHU, 7, 3, 0);
 
         if (errors == 0) $display("PASS: all tests passed");
         else             $display("FAILED: %0d mismatches", errors);

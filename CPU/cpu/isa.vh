@@ -26,6 +26,8 @@
 `define OP_LUI   8'h1F
 // mul / div
 `define OP_MUL   8'h20
+`define OP_MULH  8'h21
+`define OP_MULHU 8'h22
 `define OP_DIV   8'h24
 `define OP_DIVU  8'h25
 `define OP_MOD   8'h26
@@ -34,8 +36,11 @@
 `define OP_LD    8'h30
 `define OP_LDB   8'h31
 `define OP_LDBU  8'h32
+`define OP_LDH   8'h33
+`define OP_LDHU  8'h34
 `define OP_ST    8'h38
 `define OP_STB   8'h39
+`define OP_STH   8'h3A
 // branches
 `define OP_BEQ   8'h40
 `define OP_BNE   8'h41
@@ -65,6 +70,9 @@
 `define ALU_DIVU  4'hD
 `define ALU_MOD   4'hE
 `define ALU_MODU  4'hF
+// the high halves of the 64-bit product need a 5th bit (no opcode low digit for them)
+`define ALU_MULH  5'h10
+`define ALU_MULHU 5'h11
 
 // what gets written back to rd
 `define WB_ALU 2'd0

@@ -3,7 +3,7 @@
 module alu (
         input      [31:0] a,
         input      [31:0] b,
-        input      [3:0]  op,
+        input      [4:0]  op,
         output reg [31:0] y
     );
 
@@ -16,6 +16,10 @@ module alu (
     wire        div_ovf  = (a == 32'h8000_0000) && (b == 32'hFFFF_FFFF);
     wire [31:0] quot     = sa / sb;
     wire [31:0] rem      = sa % sb;
+
+    // high 32 bits of the 64-bit product
+    wire signed [63:0] prod_s = sa * sb;
+    wire        [63:0] prod_u = {32'd0, a} * {32'd0, b};
 
     always @(*) begin
         case (op)
@@ -31,10 +35,13 @@ module alu (
             `ALU_SLT:   y = (sa < sb) ? 1 : 0;
             `ALU_SLTU:  y = (a < b)   ? 1 : 0;
             `ALU_MUL:   y = a * b;
+            `ALU_MULH:  y = prod_s[63:32];
+            `ALU_MULHU: y = prod_u[63:32];
             `ALU_DIV:   y = div_zero ? 32'hFFFF_FFFF : div_ovf ? 32'h8000_0000 : quot;
             `ALU_DIVU:  y = div_zero ? 32'hFFFF_FFFF : a / b;
             `ALU_MOD:   y = div_zero ? a : div_ovf ? 0 : rem;
             `ALU_MODU:  y = div_zero ? a : a % b;
+            default:    y = 32'd0;
         endcase
     end
 

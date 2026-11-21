@@ -1358,11 +1358,11 @@ ff000000
           L.push(`${dest} = ${im(fmt(d.imm))}, the immediate shifted left by 16`);
           break;
         case 'LOAD':
-          L.push(`${dest} = memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}], ${d.memByte ? (d.memSigned ? 'one byte, sign-extended' : 'one byte, zero-extended') : 'one word'}`);
+          L.push(`${dest} = memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}], ${d.memByte ? (d.memSigned ? 'one byte, sign-extended' : 'one byte, zero-extended') : d.memHalf ? (d.memSigned ? 'one halfword, sign-extended' : 'one halfword, zero-extended') : 'one word'}`);
           L.push(`address ${p1(fmt(t.aluA))} + ${im(fmt(d.imm))} = ${hex8(t.aluY)}, it holds ${wb(fmt(t.loadValue))}`);
           break;
         case 'STORE':
-          L.push(`memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}] = ${p2(rn(d.rs2))}, ${d.memByte ? 'only the low byte' : 'one word'}`);
+          L.push(`memory[${p1(rn(d.rs1))} + ${im(fmt(d.imm))}] = ${p2(rn(d.rs2))}, ${d.memByte ? 'only the low byte' : d.memHalf ? 'only the low halfword' : 'one word'}`);
           L.push(`address ${p1(fmt(t.aluA))} + ${im(fmt(d.imm))} = ${hex8(t.aluY)}, stores ${p2(fmt(t.memData))}`);
           if (t.aluY >= E.FB_BASE && t.aluY < E.FB_BASE + E.FB_W * E.FB_H) {
             const n = t.aluY - E.FB_BASE;
@@ -1649,11 +1649,11 @@ ff000000
       if (isMemW) {
         text(MEM.x + 8, 321, 'write data', { size: 10, fill: '#555' });
         text(MEM.x + 8, 335, hex8(t.memData), { fill: COLORS.p2, bold: true });
-        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
+        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : d.memHalf ? `half ${t.memLane >> 1}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
       } else {
         text(MEM.x + MEM.w - 8, 276, 'read data', { anchor: 'end', size: 10, fill: '#555' });
         text(MEM.x + MEM.w - 8, 290, hex8(t.loadValue), { anchor: 'end', fill: COLORS.wb, bold: true });
-        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
+        text(MEM.x + MEM.w - 8, MEM.y + MEM.h - 8, d.memByte ? `byte ${t.memLane}` : d.memHalf ? `half ${t.memLane >> 1}` : 'whole word', { anchor: 'end', size: 10, fill: '#555' });
       }
     }
 

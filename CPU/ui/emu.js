@@ -15,8 +15,8 @@
   const CYCLES_PER_REFRESH = Math.floor(CLOCK_HZ / 60);
 
   const ALU_NAMES = ['pass b', 'add', 'sub', 'and', 'or', 'xor', 'shl', 'shr', 'sra', 'slt', 'sltu',
-                     'mul', 'div', 'divu', 'mod', 'modu'];
-  const ALU_SYMBOLS = ['b', '+', '-', '&', '|', '^', '<<', '>>', '>>>', '<', '<u', '*', '/', '/u', '%', '%u'];
+                     'mul', 'div', 'divu', 'mod', 'modu', 'mulh', 'mulhu'];
+  const ALU_SYMBOLS = ['b', '+', '-', '&', '|', '^', '<<', '>>', '>>>', '<', '<u', '*', '/', '/u', '%', '%u', '*h', '*hu'];
 
   // opcode -> [mnemonic, kind]
   // kinds: R (rd, rs, rt), I (rd, rs, imm), LUI, LOAD, STORE, BRANCH, JAL, JALR, HALT
@@ -26,9 +26,9 @@
     0x11: ['addi', 'I'], 0x13: ['andi', 'I'], 0x14: ['ori', 'I'], 0x15: ['xori', 'I'],
     0x16: ['shli', 'I'], 0x17: ['shri', 'I'], 0x18: ['srai', 'I'], 0x19: ['slti', 'I'], 0x1A: ['sltiu', 'I'],
     0x1F: ['lui', 'LUI'],
-    0x20: ['mul', 'R'], 0x24: ['div', 'R'], 0x25: ['divu', 'R'], 0x26: ['mod', 'R'], 0x27: ['modu', 'R'],
-    0x30: ['ld', 'LOAD'], 0x31: ['ldb', 'LOAD'], 0x32: ['ldbu', 'LOAD'],
-    0x38: ['st', 'STORE'], 0x39: ['stb', 'STORE'],
+    0x20: ['mul', 'R'], 0x21: ['mulh', 'R'], 0x22: ['mulhu', 'R'], 0x24: ['div', 'R'], 0x25: ['divu', 'R'], 0x26: ['mod', 'R'], 0x27: ['modu', 'R'],
+    0x30: ['ld', 'LOAD'], 0x31: ['ldb', 'LOAD'], 0x32: ['ldbu', 'LOAD'], 0x33: ['ldh', 'LOAD'], 0x34: ['ldhu', 'LOAD'],
+    0x38: ['st', 'STORE'], 0x39: ['stb', 'STORE'], 0x3A: ['sth', 'STORE'],
     0x40: ['beq', 'BRANCH'], 0x41: ['bne', 'BRANCH'], 0x42: ['blt', 'BRANCH'],
     0x43: ['bge', 'BRANCH'], 0x44: ['bltu', 'BRANCH'], 0x45: ['bgeu', 'BRANCH'],
     0x50: ['jal', 'JAL'], 0x51: ['jalr', 'JALR'],
@@ -61,13 +61,13 @@
       aluOp: 1, aluBImm: false, usesAlu: false,
       imm: sext16(imm16),
       regWrite: false, wbSel: 'alu',          // alu | mem | pc4
-      memRead: false, memWrite: false, memByte: false, memSigned: false,
+      memRead: false, memWrite: false, memByte: false, memHalf: false, memSigned: false,
       branch: false, jal: false, jalr: false,
     };
     switch (d.kind) {
       case 'R':
         d.rs2 = c; d.rd = a; d.regWrite = true; d.usesAlu = true;
-        d.aluOp = op >= 0x20 ? [0xB, 0, 0, 0, 0xC, 0xD, 0xE, 0xF][op & 7] : (op & 15);
+        d.aluOp = op >= 0x20 ? [0xB, 0x10, 0x11, 0, 0xC, 0xD, 0xE, 0xF][op & 7] : (op & 15);
         break;
       case 'I':
         d.rd = a; d.regWrite = true; d.usesAlu = true; d.aluBImm = true; d.aluOp = op & 15;
@@ -79,10 +79,11 @@
         break;
       case 'LOAD':
         d.rd = a; d.regWrite = true; d.usesAlu = true; d.aluBImm = true; d.memRead = true;
-        d.memByte = op !== 0x30; d.memSigned = op === 0x31; d.wbSel = 'mem';
+        d.memByte = op === 0x31 || op === 0x32; d.memHalf = op === 0x33 || op === 0x34;
+        d.memSigned = op === 0x31 || op === 0x33; d.wbSel = 'mem';
         break;
       case 'STORE':
-        d.rs2 = a; d.usesAlu = true; d.aluBImm = true; d.memWrite = true; d.memByte = op === 0x39;
+        d.rs2 = a; d.usesAlu = true; d.aluBImm = true; d.memWrite = true; d.memByte = op === 0x39; d.memHalf = op === 0x3A;
         break;
       case 'BRANCH':
         d.rs2 = a; d.branch = true; d.imm = sext16(imm16) * 4;
@@ -123,6 +124,8 @@
       case 13: return b === 0 ? 0xFFFFFFFF : u32(Math.floor(a / b));
       case 14: return b === 0 ? a : (a === 0x80000000 && b === 0xFFFFFFFF) ? 0 : u32(sa % sb);
       case 15: return b === 0 ? a : u32(a % b);
+      case 16: return u32(Number((BigInt(sa) * BigInt(sb)) >> 32n));
+      case 17: return u32(Number((BigInt(a) * BigInt(b)) >> 32n));
     }
     return 0;
   }
@@ -292,12 +295,15 @@
       if (d.memRead || d.memWrite) {
         t.memAddr = u32(t.aluY & ~3);
         t.memLane = t.aluY & 3;
-        if (d.memWrite) t.memData = d.memByte ? t.p2 & 255 : t.p2;
+        if (d.memWrite) t.memData = d.memByte ? t.p2 & 255 : d.memHalf ? t.p2 & 0xFFFF : t.p2;
         if (d.memRead) {
           const w = this.readWord(t.memAddr);
           if (d.memByte) {
             const byte = (w >>> (8 * t.memLane)) & 255;
             t.loadValue = d.memSigned ? u32((byte << 24) >> 24) : byte;
+          } else if (d.memHalf) {
+            const half = (w >>> (16 * (t.memLane >> 1))) & 0xFFFF;
+            t.loadValue = d.memSigned ? u32((half << 16) >> 16) : half;
           } else {
             t.loadValue = w;
           }
@@ -339,9 +345,9 @@
         else if (d.jalr) nextPc = u32(y & ~3);
         if (d.memRead || d.memWrite) {
           const addr = u32(y & ~3), lane = y & 3;
-          if (!d.memByte && lane !== 0)
-            this.warnings.push(`misaligned ${d.memWrite ? 'st' : 'ld'} at ${hex8(y)} (PC ${hex8(this.pc)})`);
-          if (d.memWrite) this.store(addr, lane, d.memByte ? p2 & 255 : p2, d.memByte);
+          if (!d.memByte && (d.memHalf ? (lane & 1) : lane !== 0))
+            this.warnings.push(`misaligned ${d.memWrite ? 'st' : 'ld'}${d.memHalf ? 'h' : ''} at ${hex8(y)} (PC ${hex8(this.pc)})`);
+          if (d.memWrite) this.store(addr, lane, d.memByte ? p2 & 255 : d.memHalf ? p2 & 0xFFFF : p2, d.memByte, d.memHalf);
           if (d.memRead) {
             const w = this.readWord(addr);
             if (addr >= IO_BASE) {
@@ -352,6 +358,9 @@
             if (d.memByte) {
               const byte = (w >>> (8 * lane)) & 255;
               wb = d.memSigned ? u32((byte << 24) >> 24) : byte;
+            } else if (d.memHalf) {
+              const half = (w >>> (16 * (lane >> 1))) & 0xFFFF;
+              wb = d.memSigned ? u32((half << 16) >> 16) : half;
             } else {
               wb = w;
             }
@@ -411,10 +420,13 @@
       return t;
     }
 
-    store(addr, lane, value, byte) {
+    store(addr, lane, value, byte, half) {
       if (addr < RAM_BYTES) {
         if (byte) {
           this.data[addr + lane] = value & 255;
+        } else if (half) {
+          const o = addr + (lane & 2);
+          this.data[o] = value & 255; this.data[o + 1] = (value >>> 8) & 255;
         } else {
           for (let k = 0; k < 4; k++) this.data[addr + k] = (value >>> (8 * k)) & 255;
         }
@@ -424,6 +436,9 @@
         const i = addr - FB_BASE;
         if (byte) {
           this.fb[i + lane] = value & 255;
+        } else if (half) {
+          const o = i + (lane & 2);
+          this.fb[o] = value & 255; this.fb[o + 1] = (value >>> 8) & 255;
         } else {
           for (let k = 0; k < 4; k++) this.fb[i + k] = (value >>> (8 * k)) & 255;
         }

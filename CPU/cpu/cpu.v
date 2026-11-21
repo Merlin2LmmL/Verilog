@@ -22,10 +22,11 @@ module cpu (
 
     assign imem_addr = pc;
 
-    wire [3:0]  rs1, rs2, rd, alu_op;
+    wire [3:0]  rs1, rs2, rd;
+    wire [4:0]  alu_op;
     wire [31:0] imm;
     wire [1:0]  wb_sel;
-    wire        alu_b_imm, reg_we, mem_re, mem_we, mem_byte, mem_signed;
+    wire        alu_b_imm, reg_we, mem_re, mem_we, mem_byte, mem_half, mem_signed;
     wire        branch, jal, jalr, halt, illegal;
 
     decoder dec (
@@ -33,7 +34,7 @@ module cpu (
         .rs1(rs1), .rs2(rs2), .rd(rd), .imm(imm),
         .alu_op(alu_op), .alu_b_imm(alu_b_imm),
         .reg_we(reg_we), .wb_sel(wb_sel),
-        .mem_re(mem_re), .mem_we(mem_we), .mem_byte(mem_byte), .mem_signed(mem_signed),
+        .mem_re(mem_re), .mem_we(mem_we), .mem_byte(mem_byte), .mem_half(mem_half), .mem_signed(mem_signed),
         .branch(branch), .jal(jal), .jalr(jalr), .halt(halt), .illegal(illegal)
     );
 
@@ -78,8 +79,10 @@ module cpu (
     assign dmem_addr  = {alu_y[31:2], 2'b00};
     assign dmem_re    = mem_re && running;
     assign dmem_we    = mem_we && running;
-    assign dmem_wstrb = mem_byte ? (4'b0001 << lane) : 4'b1111;
-    assign dmem_wdata = mem_byte ? {4{rs2_val[7:0]}} : rs2_val;
+    assign dmem_wstrb = mem_byte ? (4'b0001 << lane) :
+                        mem_half ? (lane[1] ? 4'b1100 : 4'b0011) : 4'b1111;
+    assign dmem_wdata = mem_byte ? {4{rs2_val[7:0]}} :
+                        mem_half ? {2{rs2_val[15:0]}} : rs2_val;
 
     reg [7:0] load_byte;
 
@@ -92,9 +95,11 @@ module cpu (
         endcase
     end
 
-    wire [31:0] load_val = !mem_byte  ? dmem_rdata :
-                           mem_signed ? {{24{load_byte[7]}}, load_byte} :
-                                        {24'd0, load_byte};
+    wire [15:0] load_half = lane[1] ? dmem_rdata[31:16] : dmem_rdata[15:0];
+
+    wire [31:0] load_val = mem_byte ? (mem_signed ? {{24{load_byte[7]}}, load_byte} : {24'd0, load_byte}) :
+                           mem_half ? (mem_signed ? {{16{load_half[15]}}, load_half} : {16'd0, load_half}) :
+                                      dmem_rdata;
 
     assign wb_val = (wb_sel == `WB_MEM) ? load_val :
                     (wb_sel == `WB_PC4) ? pc_plus4 :
@@ -123,7 +128,7 @@ module cpu (
         if (!rst && running) begin
             if (illegal)
                 $display("\n*** illegal instruction %08h at PC %08h", instr, pc);
-            if ((mem_re || mem_we) && !mem_byte && lane != 0)
+            if ((mem_re || mem_we) && !mem_byte && (mem_half ? lane[0] : lane != 0))
                 $display("\nwarning: misaligned %s at address %08h (PC %08h)",
                          mem_we ? "st" : "ld", alu_y, pc);
         end

@@ -73,7 +73,8 @@ module soc_sim;
                     $write("   r%0d = %08h", dut.core.rd, dut.core.wb_val);
                 if (dut.core.dmem_we)
                     $write("   [%08h] = %08h", dut.core.alu_y,
-                           dut.core.mem_byte ? {24'd0, dut.core.rs2_val[7:0]} : dut.core.rs2_val);
+                           dut.core.mem_byte ? {24'd0, dut.core.rs2_val[7:0]} :
+                           dut.core.mem_half ? {16'd0, dut.core.rs2_val[15:0]} : dut.core.rs2_val);
                 $write("\n");
             end
 

@@ -18,12 +18,12 @@ REGS.update(zero=0, a0=1, a1=2, a2=3, a3=4, t0=5, t1=6, t2=7, t3=8, t4=9,
 
 R_OPS = {'add': 0x01, 'sub': 0x02, 'and': 0x03, 'or': 0x04, 'xor': 0x05,
          'shl': 0x06, 'shr': 0x07, 'sra': 0x08, 'slt': 0x09, 'sltu': 0x0A,
-         'mul': 0x20, 'div': 0x24, 'divu': 0x25, 'mod': 0x26, 'modu': 0x27}
+         'mul': 0x20, 'mulh': 0x21, 'mulhu': 0x22, 'div': 0x24, 'divu': 0x25, 'mod': 0x26, 'modu': 0x27}
 SIGNED_I_OPS = {'addi': 0x11, 'slti': 0x19, 'sltiu': 0x1A}
 LOGIC_I_OPS = {'andi': 0x13, 'ori': 0x14, 'xori': 0x15}    # imm is zero-extended
 SHIFT_I_OPS = {'shli': 0x16, 'shri': 0x17, 'srai': 0x18}
-LOAD_OPS = {'ld': 0x30, 'ldb': 0x31, 'ldbu': 0x32}
-STORE_OPS = {'st': 0x38, 'stb': 0x39}
+LOAD_OPS = {'ld': 0x30, 'ldb': 0x31, 'ldbu': 0x32, 'ldh': 0x33, 'ldhu': 0x34}
+STORE_OPS = {'st': 0x38, 'stb': 0x39, 'sth': 0x3A}
 BRANCH_OPS = {'beq': 0x40, 'bne': 0x41, 'blt': 0x42, 'bge': 0x43, 'bltu': 0x44, 'bgeu': 0x45}
 SWAPPED_BRANCHES = {'bgt': 'blt', 'ble': 'bge', 'bgtu': 'bltu', 'bleu': 'bgeu'}
 OP_ADD, OP_SUB, OP_ADDI, OP_ORI, OP_LUI = 0x01, 0x02, 0x11, 0x14, 0x1F

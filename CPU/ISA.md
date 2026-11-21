@@ -74,8 +74,8 @@ share the low digit (`add` = `0x01`, `addi` = `0x11`).
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | **0x** ALU reg | *illegal* | add | sub | and | or | xor | shl | shr | sra | slt | sltu | |
 | **1x** ALU imm | | addi | | andi | ori | xori | shli | shri | srai | slti | sltiu | lui |
-| **2x** mul/div | mul | *mulh* | *mulhu* | | div | divu | mod | modu | | | | |
-| **3x** memory | ld | ldb | ldbu | *ldh* | *ldhu* | | | | st | stb | *sth* | |
+| **2x** mul/div | mul | mulh | mulhu | | div | divu | mod | modu | | | | |
+| **3x** memory | ld | ldb | ldbu | ldh | ldhu | | | | st | stb | sth | |
 | **4x** branch | beq | bne | blt | bge | bltu | bgeu | | | | | | |
 | **5x** jump | jal | jalr | | | | | | | | | | |
 | **Fx** system | *reserved (interrupts)* | | | | | | | | | | | halt (`0xFF`) |
@@ -140,7 +140,7 @@ Special cases (no exceptions, always a defined result):
 | divide by 0 | `0xFFFFFFFF` | `R[rs]` |
 | `div`: `0x80000000 / -1` (overflow) | `0x80000000` | `0` |
 
-Reserved: `mulh` (0x21) / `mulhu` (0x22) = high 32 bits of the 64-bit product.
+`mulh` (0x21, signed) and `mulhu` (0x22, unsigned) give the high 32 bits of the 64-bit product, `mul` the low 32 bits. Together they make 64-bit multiplication possible.
 
 ### 5.4 Memory (I-type)
 
@@ -151,12 +151,15 @@ Loads: A=rd, B=base. Stores: A=data register, B=base. Address = `R[base] + sext(
 | 0x30 | `ld   rd, [rs+imm]` | `R[rd] = M32[addr]` |
 | 0x31 | `ldb  rd, [rs+imm]` | `R[rd] = sext(M8[addr])` (signed `char`) |
 | 0x32 | `ldbu rd, [rs+imm]` | `R[rd] = zext(M8[addr])` (unsigned `char`) |
+| 0x33 | `ldh  rd, [rs+imm]` | `R[rd] = sext(M16[addr])` (signed `short`) |
+| 0x34 | `ldhu rd, [rs+imm]` | `R[rd] = zext(M16[addr])` (unsigned `short`) |
 | 0x38 | `st   rt, [rs+imm]` | `M32[addr] = R[rt]` |
 | 0x39 | `stb  rt, [rs+imm]` | `M8[addr] = R[rt][7:0]` |
+| 0x3A | `sth  rt, [rs+imm]` | `M16[addr] = R[rt][15:0]` |
 
 - `ld`/`st` must be 4-byte aligned. The hardware ignores the low 2 address bits (`addr & ~3`); the simulator also prints a warning.
 - Little-endian: the word `0x11223344` stored at address 0 puts `0x44` at byte 0 and `0x11` at byte 3.
-- Reserved: `ldh`/`ldhu`/`sth` (16-bit halfwords, for C `short`).
+- `ldh`/`ldhu`/`sth` must be 2-byte aligned. The hardware ignores address bit 0; the simulator also prints a warning.
 
 ### 5.5 Branches (I-type) — `op ra, rb, label` → A=ra, B=rb
 
@@ -413,5 +416,4 @@ Hand-encoded examples:
 ## 11. Reserved for later
 
 - Interrupts and an interrupt return instruction (`0xF0`–`0xFE`)
-- `mulh`/`mulhu`, halfword loads/stores
 - Pipelined implementation (the ISA has no flags and no delay slots, so it pipelines cleanly)

@@ -7,13 +7,14 @@ module decoder (
         output     [3:0]  rs2,         // field C (R-type) or A (store, branch)
         output     [3:0]  rd,          // field A
         output reg [31:0] imm,
-        output reg [3:0]  alu_op,
+        output reg [4:0]  alu_op,
         output reg        alu_b_imm,   // ALU b = imm instead of rs2
         output reg        reg_we,
         output reg [1:0]  wb_sel,
         output reg        mem_re,
         output reg        mem_we,
         output reg        mem_byte,
+        output reg        mem_half,
         output reg        mem_signed,
         output reg        branch,
         output reg        jal,
@@ -45,6 +46,7 @@ module decoder (
         mem_re     = 0;
         mem_we     = 0;
         mem_byte   = 0;
+        mem_half   = 0;
         mem_signed = 0;
         branch     = 0;
         jal        = 0;
@@ -61,6 +63,8 @@ module decoder (
                 reg_we   = 1;
             end
             `OP_MUL:  begin alu_op = `ALU_MUL;  rs2_is_c = 1; reg_we = 1; end
+            `OP_MULH: begin alu_op = `ALU_MULH; rs2_is_c = 1; reg_we = 1; end
+            `OP_MULHU: begin alu_op = `ALU_MULHU; rs2_is_c = 1; reg_we = 1; end
             `OP_DIV:  begin alu_op = `ALU_DIV;  rs2_is_c = 1; reg_we = 1; end
             `OP_DIVU: begin alu_op = `ALU_DIVU; rs2_is_c = 1; reg_we = 1; end
             `OP_MOD:  begin alu_op = `ALU_MOD;  rs2_is_c = 1; reg_we = 1; end
@@ -84,18 +88,20 @@ module decoder (
                 reg_we    = 1;
             end
 
-            `OP_LD, `OP_LDB, `OP_LDBU: begin   // the ALU adds rs + imm for the address
+            `OP_LD, `OP_LDB, `OP_LDBU, `OP_LDH, `OP_LDHU: begin   // the ALU adds rs + imm for the address
                 alu_b_imm  = 1;
                 mem_re     = 1;
-                mem_byte   = (op != `OP_LD);
-                mem_signed = (op == `OP_LDB);
+                mem_byte   = (op == `OP_LDB || op == `OP_LDBU);
+                mem_half   = (op == `OP_LDH || op == `OP_LDHU);
+                mem_signed = (op == `OP_LDB || op == `OP_LDH);
                 reg_we     = 1;
                 wb_sel     = `WB_MEM;
             end
-            `OP_ST, `OP_STB: begin
+            `OP_ST, `OP_STB, `OP_STH: begin
                 alu_b_imm = 1;
                 mem_we    = 1;
                 mem_byte  = (op == `OP_STB);
+                mem_half  = (op == `OP_STH);
             end
 
             `OP_BEQ, `OP_BNE, `OP_BLT, `OP_BGE, `OP_BLTU, `OP_BGEU: begin

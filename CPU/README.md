@@ -31,7 +31,7 @@ programs/           example programs
   video.asm         plays the compressed black-and-white video in video.bin
 tools/keyboard.sh   sends what you type to the running program
 tools/video.py      turns a video into video.bin (and the playground's ui/video-data.js)
-tests/isa_test.asm  89 checks covering every instruction
+tests/isa_test.asm  101 checks covering every instruction
 build/              generated files (hex, listing, waveform)
 ```
 
