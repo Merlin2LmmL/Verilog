@@ -1476,6 +1476,18 @@ ff000000
     m.pushKey(code);
   }
 
+  // the keys that are held down right now (KEYS_HELD): the browser tells us about releases
+  const HELD_BITS = { ArrowUp: 0, w: 0, ArrowDown: 1, s: 1, ArrowLeft: 2, a: 2, ArrowRight: 3, d: 3, ' ': 4 };
+  function heldBit(ev) {
+    const key = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
+    return HELD_BITS[key];
+  }
+  function keyHeld(ev, down) {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const bit = heldBit(ev);
+    if (bit !== undefined) m.setHeld(bit, down);
+  }
+
   // ---------- the diagram ----------
   // left to right: registers -> ALU -> data memory -> write-back multiplexer, and the write-back
   // bus runs along the bottom back into the registers. Wires only cross at right angles.
@@ -1765,6 +1777,9 @@ ff000000
     $('reset').addEventListener('click', resetMachine);
     $('speed').addEventListener('change', () => { if (timer !== null) { stop(); toggleRun(); } });
     $('screen').addEventListener('keydown', keyForProgram);
+    $('screen').addEventListener('keydown', (ev) => keyHeld(ev, true));
+    $('screen').addEventListener('keyup', (ev) => keyHeld(ev, false));
+    $('screen').addEventListener('blur', () => { m.held = 0; });
     $('screen').addEventListener('focus', renderScreen);
     $('screen').addEventListener('blur', renderScreen);
     $('screen').addEventListener('dblclick', toggleFullscreen);

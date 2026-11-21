@@ -332,6 +332,7 @@ slow motion, but every frame is still the same.
 | `0x1C` | `LEDS` | R/W | 32 output bits (visible in the waveform) |
 | `0x20` | `FB_SHOW` | W | any write: display the pixel screen |
 | `0x24` | `VSYNC` | R | screen refreshes since reset, 60 per second (one every 41 666 cycles) |
+| `0x28` | `KEYS_HELD` | R | bit mask of the keys that are held down right now, see below |
 
 ### Keyboard
 
@@ -346,6 +347,29 @@ that for a live keyboard: when started in a terminal without `+keys=`, they run 
 simulator through `tools/keyboard.sh`, which puts the terminal into single-key mode and
 appends every key you press (arrow keys translated to the codes above) to a temporary key
 file. In the playground, keys go to the program while the pixel screen has focus.
+
+### Held keys
+
+`KEYS_HELD` is for games that need to know whether a key is down, not only that it was
+pressed. A key that is held gives one press, a pause of about half a second, and then
+quick repeats, which makes movement based on the key codes stutter. `KEYS_HELD` has one
+bit per key that stays 1 as long as the key is down:
+
+| Bit | Keys |
+|---|---|
+| 0 | up arrow, `W` |
+| 1 | down arrow, `S` |
+| 2 | left arrow, `A` |
+| 3 | right arrow, `D` |
+| 4 | space |
+
+The keys still arrive in the key queue as well. In the playground the bits follow the real
+key presses and releases. A terminal only sends presses, never releases, so in the
+simulation each bit is a timer instead: a press sets it for 0.52 s (a little longer than the
+pause before a held key repeats), and a repeat of a key that is still set only keeps it for
+0.12 s, so a held key stays set and a released one drops out quickly. A program that reads
+`KEYS_HELD` should still read `KEY_DATA` now and then (for example for `q`): the simulation
+takes the next key from the file when the last one has been read.
 
 ## 8. Calling convention
 

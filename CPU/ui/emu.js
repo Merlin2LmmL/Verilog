@@ -230,6 +230,7 @@
       this.frames = 0;                    // how many times FB_SHOW was written
       this.keys = [];                     // key codes waiting to be read (pushKey)
       this.readsKeys = false;             // the program has looked at the keyboard
+      this.held = 0;                      // keys that are down right now, KEYS_HELD (setHeld)
       this.touched = new Set();           // word indexes of RAM that were written
       this.lastWrittenReg = null;
       this.lastStore = null;
@@ -256,6 +257,7 @@
           case 0x0C: return this.keys.length ? this.keys[0] : 0;  // KEY_DATA
           case 0x10: return this.timer;
           case 0x24: return this.vsync;                           // VSYNC
+          case 0x28: return this.held;                            // KEYS_HELD
           case 0x14: return this.rng;
           case 0x1C: return this.leds;
         }
@@ -353,7 +355,7 @@
             if (addr >= IO_BASE) {
               const reg = addr - IO_BASE;
               if (reg === 0x14) this.rng = xorshift(this.rng);
-              if (reg === 0x08 || reg === 0x0C) this.readsKeys = true;
+              if (reg === 0x08 || reg === 0x0C || reg === 0x28) this.readsKeys = true;
             }
             if (d.memByte) {
               const byte = (w >>> (8 * lane)) & 255;
@@ -408,7 +410,7 @@
       if (d.memRead && t.memAddr >= IO_BASE) {
         const reg = t.memAddr - IO_BASE;
         if (reg === 0x14) this.rng = xorshift(this.rng);
-        if (reg === 0x08 || reg === 0x0C) this.readsKeys = true;
+        if (reg === 0x08 || reg === 0x0C || reg === 0x28) this.readsKeys = true;
         if (reg === 0x0C && this.keys.length) this.keys.shift();    // reading the key takes it
       }
 
@@ -459,6 +461,12 @@
     // a key press for the program: ASCII, or 0x80-0x83 for the arrow keys (ISA.md section 7)
     pushKey(code) {
       if (this.keys.length < 256) this.keys.push(code & 255);
+    }
+
+    // a key goes down or up: bit 0 up (arrow / W), 1 down (arrow / S), 2 left (arrow / A),
+    // 3 right (arrow / D), 4 space. The program reads them as KEYS_HELD (ISA.md section 7)
+    setHeld(bit, down) {
+      this.held = down ? (this.held | (1 << bit)) : (this.held & ~(1 << bit));
     }
   }
 
