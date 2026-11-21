@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen pixels draw snake video mandelbrot life pong tetris cube plasma)
+programs=(fib hello keys screen pixels draw snake video mandelbrot life pong tetris cube plasma hexrun)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -121,6 +121,7 @@ Nothing to install or build. Unzip, then:
     ./run tetris       tetris (arrows or WASD, space drops, q quits)
     ./run cube         a spinning 3D wireframe cube bouncing around (q quits)
     ./run plasma       a colorful plasma, space switches the colors (q quits)
+    ./run hexrun       turn a hexagonal tunnel to dodge spikes, left/right or A/D, speed pads (q quits)
     ./run isa_test     101 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per

@@ -35,6 +35,7 @@ programs/           example programs
   tetris.asm        tetris with next piece, score, lines and levels (uses ldhu for the piece table)
   cube.asm          a spinning, bouncing 3D wireframe cube (sine table with ldh, perspective, Bresenham lines)
   plasma.asm        colorful sine-wave plasma with three palettes (space switches, uses sth)
+  hexrun.asm        a 3D game: turn a hexagonal tunnel to dodge spikes, with speed-up and slow-down pads
 tools/keyboard.sh   sends what you type to the running program
 tools/video.py      turns a video into video.bin (and the playground's ui/video-data.js)
 tools/mkexamples.py  assembles the bigger example programs into ui/examples.bin (the playground loads it)

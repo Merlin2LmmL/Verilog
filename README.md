@@ -37,7 +37,7 @@ open `http://localhost:8000`.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
   Hello World, a program that uses every instruction type, a square bouncing on the
   pixel screen, a drawing program, snake you control with the arrow keys, a video player,
-  a Mandelbrot zoom, Game of Life, Pong, Tetris, a spinning 3D cube and a plasma.
+  a Mandelbrot zoom, Game of Life, Pong, Tetris, a spinning 3D cube, a plasma and Hexrun, a 3D tunnel game.
   A comment at the top of each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
@@ -184,6 +184,7 @@ cd CPU
 ./run.sh programs/tetris.asm                       # tetris, arrows or WASD, space drops, q quits
 ./run.sh programs/cube.asm                         # a spinning 3D cube, q quits
 ./run.sh programs/plasma.asm                       # a colorful plasma, space switches colors, q quits
+./run.sh programs/hexrun.asm                       # turn a hexagonal tunnel to dodge spikes, left/right or A/D, q quits
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
 
