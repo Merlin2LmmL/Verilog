@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen pixels draw snake video mandelbrot life pong tetris)
+programs=(fib hello keys screen pixels draw snake video mandelbrot life pong tetris cube)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -119,6 +119,7 @@ Nothing to install or build. Unzip, then:
     ./run life         Conway's Game of Life, random start (any key = new world, q quits)
     ./run pong         pong against the computer (up/down or W/S, q quits)
     ./run tetris       tetris (arrows or WASD, space drops, q quits)
+    ./run cube         a spinning 3D wireframe cube bouncing around (q quits)
     ./run isa_test     101 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per
