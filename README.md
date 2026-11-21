@@ -37,7 +37,7 @@ open `http://localhost:8000`.
 - The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
   Hello World, a program that uses every instruction type, a square bouncing on the
   pixel screen, a drawing program, snake you control with the arrow keys, a video player,
-  a Mandelbrot zoom.
+  a Mandelbrot zoom and Game of Life.
   A comment at the top of each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
@@ -179,6 +179,7 @@ cd CPU
 ./run.sh programs/snake.asm                        # snake with a settings menu, arrow keys or WASD, q quits
 ./run.sh programs/video.asm                        # a black-and-white video from RAM
 ./run.sh programs/mandelbrot.asm                   # a continuous zoom into the Mandelbrot set
+./run.sh programs/life.asm                         # Conway's Game of Life, any key = new world, q quits
 ./run.sh tests/isa_test.asm                        # tests every instruction
 ```
 
