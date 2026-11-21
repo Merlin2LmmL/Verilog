@@ -12,7 +12,7 @@ work="$here/build/verilator"
 dist="$here/dist"
 pkg="$dist/$name"
 
-programs=(fib hello keys screen pixels draw snake video mandelbrot life)
+programs=(fib hello keys screen pixels draw snake video mandelbrot life pong)
 tests=(isa_test)
 
 rm -rf "$work" "$pkg"
@@ -117,6 +117,7 @@ Nothing to install or build. Unzip, then:
     ./run video        a 26 second black-and-white video, compressed in RAM
     ./run mandelbrot   a continuous zoom into the Mandelbrot set (any key restarts, q quits)
     ./run life         Conway's Game of Life, random start (any key = new world, q quits)
+    ./run pong         pong against the computer (up/down or W/S, q quits)
     ./run isa_test     101 checks for every instruction, prints PASS
 
 The pixel screen is drawn in the terminal with 24-bit colors, two pixels per

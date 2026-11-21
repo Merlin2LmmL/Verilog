@@ -31,6 +31,7 @@ programs/           example programs
   video.asm         plays the compressed black-and-white video in video.bin
   mandelbrot.asm    dives into the Mandelbrot set with 24 smooth zoom-ins (fixed point, mulh)
   life.asm          Conway's Game of Life on a wrapping 64x48 world, random start
+  pong.asm          pong against the computer (W/S or arrows, first to 7)
 tools/keyboard.sh   sends what you type to the running program
 tools/video.py      turns a video into video.bin (and the playground's ui/video-data.js)
 tools/mkexamples.py  assembles the bigger example programs into ui/examples.bin (the playground loads it)
