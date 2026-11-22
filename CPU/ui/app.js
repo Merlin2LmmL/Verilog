@@ -1242,7 +1242,7 @@ ff000000
           const dt = lastTs === null ? 1000 / 60 : ts - lastTs;
           lastTs = ts;
           let refreshes;
-          if (Math.abs(dt - 1000 / 60) < 2) refreshes = 1;
+          if (dt > 11 && dt < 26) refreshes = 1;       // about 60 Hz: exactly one refresh, so jitter never drops or doubles a frame
           else { owed += dt * 60 / 1000; refreshes = Math.min(4, Math.floor(owed)); owed -= Math.floor(owed); }
           goal = m.cycles + refreshes * E.CYCLES_PER_REFRESH - m.refreshCycles;   // next refresh boundary
           if (refreshes === 0) goal = m.cycles;
@@ -1275,7 +1275,8 @@ ff000000
   // is a visible stutter in anything that moves, so it is only updated a few times a second.
   let lastFullRefresh = 0;
   function refreshWhileRunning(ts) {
-    if (ts - lastFullRefresh > 250 || m.halted) { lastFullRefresh = ts; refresh(); }
+    // a program that draws frames (or reads keys) is a game: redraw the debugger only once a second
+    if (ts - lastFullRefresh > (m.frames > 0 || m.readsKeys ? 1000 : 250) || m.halted) { lastFullRefresh = ts; refresh(); }
     else renderScreen();
   }
 
