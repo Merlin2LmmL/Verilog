@@ -16,9 +16,9 @@
 
 /* Level 1, World 1-1: 211 columns, three pits, pipes, brick/crate rows, the hidden 1-up, stairs and the flagpole. */
 static const LevelRect k_l1_rects[] = {
-    R(T_GROUND, 0, 11, 69, 1), R(T_GROUND, 71, 11, 15, 1), R(T_GROUND, 89, 11, 64, 1),
+    R(T_GROUND, 0, 11, 69, 1), R(T_GROUND, 71, 11, 15, 1), R(T_GROUND, 88, 11, 65, 1),
     R(T_GROUND, 155, 11, 56, 1), R(T_DIRT, 0, 12, 69, 1), R(T_DIRT, 71, 12, 15, 1),
-    R(T_DIRT, 89, 12, 64, 1), R(T_DIRT, 155, 12, 56, 1), R(T_CLOUD, 19, 0, 2, 1),
+    R(T_DIRT, 88, 12, 65, 1), R(T_DIRT, 155, 12, 56, 1), R(T_CLOUD, 19, 0, 2, 1),
     R(T_CLOUD, 37, 0, 2, 1), R(T_CLOUD, 67, 0, 2, 1), R(T_CLOUD, 85, 0, 2, 1),
     R(T_CLOUD, 115, 0, 2, 1), R(T_CLOUD, 133, 0, 2, 1), R(T_CLOUD, 163, 0, 2, 1),
     R(T_CLOUD, 181, 0, 2, 1), R(T_CLOUD, 8, 1, 2, 1), R(T_CLOUD, 28, 1, 2, 1),

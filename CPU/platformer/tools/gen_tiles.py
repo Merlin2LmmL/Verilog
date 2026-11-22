@@ -100,6 +100,8 @@ TILES = [
                   "gggggggg", "ggggggg.", "........", "........"]),
     ("T_TRUNK", ["..bbbb..", "..bBbb..", "..bbbB..", "..bBbb..",
                  "..bbbb..", "..bbBb..", "..bbbb..", "..bBbb.."]),
+    # ends of a cloud / bush that is 2 or more cells wide; the art comes from EDGE_TILES below
+    ("T_CLOUD_L", None), ("T_CLOUD_R
 ]
 
 # ---------------- sprites (8x8, '.' transparent) ----------------

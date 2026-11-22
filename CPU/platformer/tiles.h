@@ -66,7 +66,7 @@ enum {
 };
 
 /* [background set][tile id][word]: 8x8 RGB332, 4 px per word, little-endian */
-extern const uint32_t g_tile_art[2][31][16];
+extern const uint32_t g_tile_art[2][35][16];
 extern const uint8_t  g_sprite_art[NUM_SPRITES][64];
 extern const uint8_t  g_font[10][5];
 

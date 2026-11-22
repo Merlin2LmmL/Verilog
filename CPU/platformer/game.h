@@ -43,6 +43,7 @@ enum {
     T_POLE, T_SPRING, T_GOAL, T_CLOUD, T_BUSH,
     T_WATER, T_WATERTOP,
     T_TREE_L, T_TREE_M, T_TREE_R, T_TRUNK,   /* mushroom platform: solid cap, background trunk */
+    T_CLOUD_L, T_CLOUD_R, T_BUSH_L, T_BUSH_R, /* ends of a cloud / bush that is 2 or more cells wide (levels.c only has T_CLOUD, T_BUSH) */
     NUM_TILES
 };
 

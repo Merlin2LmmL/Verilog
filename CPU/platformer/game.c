@@ -64,7 +64,11 @@ static const uint8_t k_tile_class[NUM_TILES] = {
     C_SOLID,    /* T_TREE_L */
     C_SOLID,    /* T_TREE_M */
     C_SOLID,    /* T_TREE_R */
-    C_EMPTY     /* T_TRUNK: background only, walk through it */
+    C_EMPTY,    /* T_TRUNK: background only, walk through it */
+    C_EMPTY,    /* T_CLOUD_L */
+    C_EMPTY,    /* T_CLOUD_R */
+    C_EMPTY,    /* T_BUSH_L */
+    C_EMPTY     /* T_BUSH_R */
 };
 
 uint8_t game_tile_class(uint8_t id)
@@ -328,8 +332,15 @@ static void build_map(GameState *s, const LevelDef *d)
         for (r = 0; r < q->h; r++) {
             uint8_t row = (uint8_t)(q->row + r);
             if (row >= MAP_ROWS) break;
-            for (c = 0; c < q->w; c++)
-                s->m.map[((uint16_t)row << 8) | (uint8_t)(q->col + c)] = q->id;
+            for (c = 0; c < q->w; c++) {
+                uint8_t id = q->id;
+                /* scenery that is 2 or more cells wide gets its own left and right end */
+                if (q->w > 1u && (id == T_CLOUD || id == T_BUSH)) {
+                    if (c == 0) id = (uint8_t)(id == T_CLOUD ? T_CLOUD_L : T_BUSH_L);
+                    else if (c == q->w - 1u) id = (uint8_t)(id == T_CLOUD ? T_CLOUD_R : T_BUSH_R);
+                }
+                s->m.map[((uint16_t)row << 8) | (uint8_t)(q->col + c)] = id;
+            }
         }
     }
 }
@@ -1629,6 +1640,18 @@ static void boss_move(GameState *s, Enemy *e)
 {
     Player *p = &s->p;
     uint8_t right = (uint8_t)((uint32_t)p->b.x >= (uint32_t)e->b.x + 32u), chase;
+    /* own: the player got past the far end of the bridge (where the axe stands in the original):
+     * the bridge falls away and the boss drops with it, 5000 points */
+    if ((uint32_t)p->b.x >= (uint32_t)e->hx + 80u) {
+        uint8_t brow = (uint8_t)(e->hy >> 4), bc;
+        uint16_t first = (uint16_t)((e->hx >> 4) - 8u);
+        for (bc = 0; bc < 13u; bc++) s->m.map[((uint16_t)brow << 8) | (uint8_t)(first + bc)] = T_SKY;
+        e->state = ESF_D;
+        e->b.vy = -2;
+        e->b.vyf = 0;
+        award(s, slot_of(s, e), 9, e->b.x, e->b.y);
+        return;
+    }
     if ((s->fc & 31u) == 0) e->aux ^= 1u;
     if ((s->fc & 15u) == 0) e->dir = 2;
     /* own: the approach timer is kept running while the player is past it */
