@@ -34,11 +34,8 @@ open `http://localhost:8000`.
   disassembled instruction. Invalid hex is reported under the editor.
 - Initial contents of data memory can be entered in the optional *Data memory* field,
   as hex words starting at address 0.
-- The *Example* menu loads ready-made programs: a short calculation, a loop, Fibonacci,
-  Hello World, a program that uses every instruction type, a square bouncing on the
-  pixel screen, a drawing program, snake you control with the arrow keys, a video player,
-  a Mandelbrot zoom, Game of Life, Pong, Tetris, a spinning 3D cube, a plasma and Hexrun, a 3D tunnel game.
-  A comment at the top of each one says what it does.
+- The *Example* menu loads ready-made programs (listed below). A comment at the top of
+  each one says what it does.
 
 You can generate the hex for your own assembly programs with the assembler
 (`CPU/tools/asm.py`); the `.text.hex` and `.data.hex` files it writes use the same
@@ -116,6 +113,29 @@ VS Code is optional. The repo has build tasks and linter settings for the
 Verilog-HDL extension (`mshr-h.veriloghdl`), and VS Code suggests it when you open
 the folder.
 
+## Example programs
+
+All of them are in `CPU/programs/` (assembly) and in the playground's *Example* menu.
+
+- `fib.asm`: the first 20 Fibonacci numbers.
+- `hello.asm`: prints Hello, World! from a string in data memory, using a function.
+- `keys.asm`: reads the keyboard and echoes it in uppercase.
+- `screen.asm`: a ball bouncing on the colored text screen.
+- `pixels.asm`: the 128x96 pixel screen, with a gradient, all 256 colors and a bouncing square.
+- `draw.asm`: draw on the pixel screen with the arrow keys.
+- `snake.asm`: snake with a menu for the size, the speed and the number of apples.
+- `video.asm`: plays a compressed 26 second black-and-white video from RAM.
+- `mandelbrot.asm`: a continuous zoom into the Mandelbrot set, in fixed point math (uses `mulh`).
+- `life.asm`: Conway's Game of Life on a 64x48 world that wraps around, with a random start.
+- `pong.asm`: Pong against the computer, first to 7 (W/S or the arrow keys).
+- `tetris.asm`: Tetris with a next-piece preview, score, lines and levels.
+- `cube.asm`: a spinning, bouncing 3D wireframe cube with perspective and shaded edges.
+- `plasma.asm`: a flowing plasma made of sine waves, with three color schemes on the space bar.
+- `hexrun.asm`: a 3D game where you turn a hexagonal tunnel to dodge rows of spikes.
+- `CPU/platformer/`: a Mario-style platformer written in C, compiled to RISC-V and translated
+  to this CPU by `tools/rv2cpu.py` (it runs at 60 fps). It is in the *Example* menu as Platformer.
+- `tests/isa_test.asm`: 101 checks that cover every instruction, prints PASS.
+
 ## What's in here
 
 ```
@@ -129,6 +149,7 @@ CPU/
   tools/asm.py                      the assembler
   ui/                               CPU Playground: hex editor + data path diagram in the browser
   programs/                         example programs
+  platformer/                       a platformer in C, translated to this CPU
   tests/isa_test.asm                checks every instruction
 sim.sh                              run testbenches (or a CPU program)
 wave.sh                             open a waveform in GTKWave

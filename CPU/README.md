@@ -36,6 +36,8 @@ programs/           example programs
   cube.asm          a spinning, bouncing 3D wireframe cube (sine table with ldh, perspective, Bresenham lines)
   plasma.asm        colorful sine-wave plasma with three palettes (space switches, uses sth)
   hexrun.asm        a 3D game: turn a hexagonal tunnel to dodge spikes, with speed-up and slow-down pads
+platformer/         a Mario-style platformer in C: game.c is the game, tools/rv2cpu.py translates the compiled
+                    RISC-V code into programs for this CPU (make cpu), data.bin is its RAM image
 tools/keyboard.sh   sends what you type to the running program
 tools/video.py      turns a video into video.bin (and the playground's ui/video-data.js)
 tools/mkexamples.py  assembles the bigger example programs into ui/examples.bin (the playground loads it)
