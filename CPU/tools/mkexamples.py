@@ -27,6 +27,10 @@ PROGRAMS = [                      # file name in programs/, name in the example 
     ('cube', 'Spinning cube'),
     ('plasma', 'Plasma'),
     ('hexrun', 'Hexrun'),
+    ('platformer/build/platformer', 'Platformer', [     # built from C (see platformer/DESIGN.md)
+        '; A side-scrolling platformer written in C, compiled to RV32E assembly and translated to',
+        '; this CPU by platformer/tools/rv2cpu.py. Left/right (A/D) walk, space jumps, up (W) runs,',
+        '; down (S) crouches. It runs at 60 fps at 2.5 MHz.']),
 ]
 
 
@@ -35,21 +39,27 @@ def words(path):
         return [int(line.split(';')[0].strip(), 16) for line in f if line.split(';')[0].strip()]
 
 
-def pack(prog, title):
-    src = os.path.join(here, 'programs', prog + '.asm')
-    out = os.path.join(here, 'build', prog)
+def pack(prog, title, note=None):
+    if note:                          # a program that is generated in its own folder
+        subprocess.run(['make', '-s', '-C', os.path.join(here, 'platformer'), 'cpu'], check=True,
+                       capture_output=True)
+        src = os.path.join(here, prog.split('/build/')[0], 'build', prog.split('/build/')[1] + '.asm')
+        out = os.path.join(here, 'build', prog.split('/')[-1])
+    else:
+        src = os.path.join(here, 'programs', prog + '.asm')
+        out = os.path.join(here, 'build', prog)
     os.makedirs(os.path.dirname(out), exist_ok=True)
     subprocess.run([sys.executable, os.path.join(here, 'tools', 'asm.py'), src, '-o', out],
                    check=True, capture_output=True)
-    header = []
+    header = list(note or [])
     with open(src) as f:
         for line in f:
-            if not line.startswith(';'):
+            if note or not line.startswith(';'):
                 break
             header.append(line.rstrip('\n'))
     while header and header[-1] == ';':
         header.pop()
-    header.append('; Assembled from programs/%s.asm.' % prog)
+    header.append('; Assembled from %s.asm.' % (prog if note else 'programs/' + prog))
     text, data = words(out + '.text.hex'), words(out + '.data.hex')
     name, head = title.encode(), '\n'.join(header).encode()
     blob = struct.pack('<H', len(name)) + name + struct.pack('<I', len(head)) + head

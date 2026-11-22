@@ -1,0 +1,23 @@
+# frames keys (U D L R J): walk and hop through level 3 to the arena (budget check)
+30 -
+40 R
+20 RJ
+30 R
+20 RUJ
+40 RU
+20 RJ
+60 R
+20 RJ
+40 R
+20 RUJ
+60 RU
+20 RJ
+80 R
+20 RJ
+60 R
+20 RJ
+120 R
+20 RJ
+200 R
+20 RJ
+300 R
