@@ -135,7 +135,7 @@ All of them are in `CPU/programs/` (assembly) and in the playground's *Example* 
 - `video.asm`: plays a compressed 26 second black-and-white video from RAM.
 - `mandelbrot.asm`: a continuous zoom into the Mandelbrot set, in fixed point math (uses `mulh`).
 - `life.asm`: Conway's Game of Life on a 64x48 world that wraps around, with a random start.
-- `pong.asm`: Pong against the computer, first to 7 (W/S or the arrow keys).
+- `pong.asm`: Pong against the computer, first to 7 (W/S or the arrow keys; in the playground you can also hold the mouse button or a finger on the screen and the paddle follows it).
 - `tetris.asm`: Tetris with a next-piece preview, score, lines and levels.
 - `cube.asm`: a spinning, bouncing 3D wireframe cube with perspective and shaded edges.
 - `plasma.asm`: a flowing plasma made of sine waves, with three color schemes on the space bar.

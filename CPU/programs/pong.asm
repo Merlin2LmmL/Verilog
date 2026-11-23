@@ -4,6 +4,8 @@
 ; Keys: up / W moves your paddle up, down / S moves it down, q quits. The paddle moves exactly
 ; as long as you hold the key: the program reads the keys that are down right now from the
 ; KEYS_HELD register, so it stops the moment you let go and can be placed precisely.
+; In the playground you can also hold the mouse button (or a finger) on the screen: the
+; paddle follows its height, at most 4 pixels per frame.
 ;
 ; Where the ball hits the paddle decides where it goes next: the center sends it straight back,
 ; the edges send it away at an angle. Every hit makes it a little faster. The computer follows
@@ -23,6 +25,8 @@
         .equ FB_SHOW,    0x20
         .equ VSYNC,      0x24
         .equ KEYS_HELD,  0x28
+        .equ POINTER_Y,  0x30
+        .equ POINTER_BTN,0x34
 
         .equ BX,         0              ; state block: ball x and y (8.8), ball speed x and y
         .equ BY,         4
@@ -321,6 +325,21 @@ pk_nu:  andi t3, t2, 2                  ; down
 pk_nd:  ld   t0, [s0+PY]
         shli t1, t1, 1                  ; 2 pixels per frame
         add  t0, t0, t1
+        li   t2, IO                     ; mouse or finger down: follow it, at most 4 pixels per frame
+        ld   t3, [t2+POINTER_BTN]
+        andi t3, t3, 1
+        beqz t3, pk_clamp
+        ld   t3, [t2+POINTER_Y]
+        addi t3, t3, -PH_HALF           ; the paddle's center goes to the pointer
+        sub  t3, t3, t0
+        li   t4, 4
+        ble  t3, t4, pk_dhi
+        mov  t3, t4
+pk_dhi: sub  t4, r0, t4
+        bge  t3, t4, pk_dlo
+        mov  t3, t4
+pk_dlo: add  t0, t0, t3
+pk_clamp:
         call clamp
         st   t0, [s0+PY]
 

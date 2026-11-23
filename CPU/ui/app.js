@@ -1462,11 +1462,19 @@ ff000000
   // an exit button and the on-screen controls (index.html).
   const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
   const isFullscreen = () => !!fsElement() || $('screen-box').classList.contains('pseudo-fs');
+  let padHeld = 0;           // KEYS_HELD bits held by the on-screen buttons (the keyboard's bits are the rest)
+  // no pinch or double-tap zoom while the screen is fullscreen (iOS Safari ignores user-scalable,
+  // so the gesture events are stopped as well, see setupPointer)
+  function lockZoom(on) {
+    $('viewport').content = on ? 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover'
+                               : 'width=device-width, initial-scale=1';
+  }
   function fullscreenChanged() {
     const on = isFullscreen();
     $('fullscreen').textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+    lockZoom(on);
     if (!on) {
-      m.held = 0;
+      m.held = padHeld = 0;
       if (screen.orientation && screen.orientation.unlock) try { screen.orientation.unlock(); } catch (e) { /* not locked */ }
     }
   }
@@ -1512,15 +1520,34 @@ ff000000
     s.addEventListener('contextmenu', (ev) => ev.preventDefault());   // a long press must not open a menu
 
     // the on-screen keys: pressing one is a key press for the program and holds its KEYS_HELD bit
+    // (the bits are kept in padHeld too: the canvas losing the focus clears the keyboard's bits only)
     for (const b of document.querySelectorAll('#fs-pad button, #fs-jump button')) {
       const bit = +b.dataset.bit;
-      b.addEventListener('pointerdown', (ev) => { ev.preventDefault(); b.classList.add('on'); m.pushKey(+b.dataset.key); m.setHeld(bit, true); });
-      const off = () => { b.classList.remove('on'); m.setHeld(bit, false); };
+      b.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        try { b.setPointerCapture(ev.pointerId); } catch (e) { /* the pointer is gone already */ }
+        b.classList.add('on');
+        m.pushKey(+b.dataset.key);
+        padHeld |= 1 << bit;
+        m.setHeld(bit, true);
+      });
+      const off = () => { b.classList.remove('on'); padHeld &= ~(1 << bit); m.setHeld(bit, false); };
       b.addEventListener('pointerup', off);
       b.addEventListener('pointercancel', off);
-      b.addEventListener('pointerleave', off);
+      b.addEventListener('lostpointercapture', off);
       b.addEventListener('contextmenu', (ev) => ev.preventDefault());
+      b.addEventListener('mousedown', (ev) => ev.preventDefault());       // the button must not take the focus
     }
+    // iOS Safari: pinch and double-tap zoom have to be stopped in the events themselves
+    const noZoom = (ev) => { if (isFullscreen()) ev.preventDefault(); };
+    for (const name of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(name, noZoom);
+    document.addEventListener('touchmove', (ev) => { if (isFullscreen() && (ev.touches.length > 1 || ev.scale && ev.scale !== 1)) ev.preventDefault(); }, { passive: false });
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (ev) => {
+      const now = Date.now();
+      if (isFullscreen() && now - lastTouchEnd < 350) ev.preventDefault();
+      lastTouchEnd = now;
+    }, { passive: false });
     $('fs-exit').addEventListener('click', exitFullscreen);
     $('fs-pad-toggle').addEventListener('click', () => $('screen-box').classList.toggle('nopad'));
   }
@@ -1840,7 +1867,7 @@ ff000000
     $('screen').addEventListener('keydown', keyForProgram);
     $('screen').addEventListener('keydown', (ev) => keyHeld(ev, true));
     $('screen').addEventListener('keyup', (ev) => keyHeld(ev, false));
-    $('screen').addEventListener('blur', () => { m.held = 0; });
+    $('screen').addEventListener('blur', () => { m.held = padHeld; });
     $('screen').addEventListener('focus', renderScreen);
     $('screen').addEventListener('blur', renderScreen);
     $('screen').addEventListener('dblclick', toggleFullscreen);
