@@ -1457,12 +1457,72 @@ ff000000
 
   // fullscreen: the box around the canvas goes fullscreen, the CSS makes the canvas
   // as big as fits. The canvas gets the focus, so the keys go to the program right away
+  // A phone browser that has no Fullscreen API for elements (iPhone Safari) gets the same box
+  // fixed over the whole page instead (class pseudo-fs). On a touch screen the box also shows
+  // an exit button and the on-screen controls (index.html).
+  const fsElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+  const isFullscreen = () => !!fsElement() || $('screen-box').classList.contains('pseudo-fs');
+  function fullscreenChanged() {
+    const on = isFullscreen();
+    $('fullscreen').textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+    if (!on) {
+      m.held = 0;
+      if (screen.orientation && screen.orientation.unlock) try { screen.orientation.unlock(); } catch (e) { /* not locked */ }
+    }
+  }
+  function exitFullscreen() {
+    $('screen-box').classList.remove('pseudo-fs');
+    if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen();
+    else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+    fullscreenChanged();
+  }
   function toggleFullscreen() {
-    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (isFullscreen()) { exitFullscreen(); return; }
     const box = $('screen-box');
-    if (!box.requestFullscreen) return;
     $('screen-details').open = true;
-    box.requestFullscreen().then(() => $('screen').focus()).catch(() => { /* not allowed here */ });
+    const request = box.requestFullscreen || box.webkitRequestFullscreen;
+    const fallback = () => { box.classList.add('pseudo-fs'); fullscreenChanged(); $('screen').focus(); };
+    if (!request) { fallback(); return; }
+    Promise.resolve(request.call(box)).then(() => {
+      $('screen').focus();
+      // games are wider than tall; a phone held upright can be turned (only works in fullscreen)
+      if (screen.orientation && screen.orientation.lock && window.matchMedia('(pointer: coarse)').matches)
+        screen.orientation.lock('landscape').catch(() => { /* not supported or not allowed */ });
+    }).catch(fallback);
+  }
+
+  // mouse / touch: the position on the screen in pixels, and whether the button or finger is down
+  // (POINTER_X, POINTER_Y, POINTER_BTN in ISA.md section 7)
+  function pointerMoved(ev, down) {
+    const r = $('screen').getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    m.setPointer((ev.clientX - r.left) / r.width * 128, (ev.clientY - r.top) / r.height * 96, down);
+  }
+  function setupPointer() {
+    const s = $('screen');
+    s.addEventListener('pointerdown', (ev) => {
+      if (ev.pointerType === 'mouse' && ev.button !== 0) return;
+      try { s.setPointerCapture(ev.pointerId); } catch (e) { /* the pointer is gone already */ }
+      pointerMoved(ev, true);
+    });
+    s.addEventListener('pointermove', (ev) => pointerMoved(ev, ev.buttons !== 0 || ev.pointerType !== 'mouse' && s.hasPointerCapture(ev.pointerId)));
+    const up = (ev) => pointerMoved(ev, false);
+    s.addEventListener('pointerup', up);
+    s.addEventListener('pointercancel', up);
+    s.addEventListener('contextmenu', (ev) => ev.preventDefault());   // a long press must not open a menu
+
+    // the on-screen keys: pressing one is a key press for the program and holds its KEYS_HELD bit
+    for (const b of document.querySelectorAll('#fs-pad button, #fs-jump button')) {
+      const bit = +b.dataset.bit;
+      b.addEventListener('pointerdown', (ev) => { ev.preventDefault(); b.classList.add('on'); m.pushKey(+b.dataset.key); m.setHeld(bit, true); });
+      const off = () => { b.classList.remove('on'); m.setHeld(bit, false); };
+      b.addEventListener('pointerup', off);
+      b.addEventListener('pointercancel', off);
+      b.addEventListener('pointerleave', off);
+      b.addEventListener('contextmenu', (ev) => ev.preventDefault());
+    }
+    $('fs-exit').addEventListener('click', exitFullscreen);
+    $('fs-pad-toggle').addEventListener('click', () => $('screen-box').classList.toggle('nopad'));
   }
 
   // keyboard: while the screen has focus, keys go to the program instead of the shortcuts
@@ -1785,11 +1845,12 @@ ff000000
     $('screen').addEventListener('blur', renderScreen);
     $('screen').addEventListener('dblclick', toggleFullscreen);
     $('fullscreen').addEventListener('click', toggleFullscreen);
-    document.addEventListener('fullscreenchange', () => {
-      $('fullscreen').textContent = document.fullscreenElement ? 'Exit fullscreen' : 'Fullscreen';
-    });
+    document.addEventListener('fullscreenchange', fullscreenChanged);
+    document.addEventListener('webkitfullscreenchange', fullscreenChanged);
+    setupPointer();
     document.addEventListener('keydown', (ev) => {
       if (ev.target.tagName === 'TEXTAREA' || ev.target.tagName === 'SELECT' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (ev.key === 'Escape' && $('screen-box').classList.contains('pseudo-fs')) { exitFullscreen(); return; }
       if (ev.target === $('screen')) return;      // those keys are for the program
       if (ev.key === 's' || ev.key === 'S') { stop(); doStep(); }
       else if (ev.key === 'r' || ev.key === 'R') toggleRun();

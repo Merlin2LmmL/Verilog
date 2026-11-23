@@ -27,6 +27,7 @@ programs/           example programs
   screen.asm        colored text screen with a bouncing ball
   pixels.asm        128x96 pixel screen: gradient, all 256 colors, a bouncing square
   draw.asm          draw on the pixel screen with the arrow keys (live keyboard)
+  paint.asm         paint with the mouse or a finger (playground only, needs the pointer)
   snake.asm         snake with a settings menu (size, speed, apples), steered with the arrow keys
   video.asm         plays the compressed black-and-white video in video.bin
   mandelbrot.asm    dives into the Mandelbrot set with 24 smooth zoom-ins (fixed point, mulh)

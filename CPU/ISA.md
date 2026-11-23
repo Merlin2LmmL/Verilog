@@ -333,6 +333,9 @@ slow motion, but every frame is still the same.
 | `0x20` | `FB_SHOW` | W | any write: display the pixel screen |
 | `0x24` | `VSYNC` | R | screen refreshes since reset, 60 per second (one every 41 666 cycles) |
 | `0x28` | `KEYS_HELD` | R | bit mask of the keys that are held down right now, see below |
+| `0x2C` | `POINTER_X` | R | mouse / finger position, pixel column 0–127 of the pixel screen |
+| `0x30` | `POINTER_Y` | R | mouse / finger position, pixel row 0–95 of the pixel screen |
+| `0x34` | `POINTER_BTN` | R/W | bit 0: button or finger is down; bit 1: it went down since the last write to this register. Any write clears bit 1 |
 
 ### Keyboard
 
@@ -370,6 +373,26 @@ pause before a held key repeats), and a repeat of a key that is still set only k
 0.12 s, so a held key stays set and a released one drops out quickly. A program that reads
 `KEYS_HELD` should still read `KEY_DATA` now and then (for example for `q`): the simulation
 takes the next key from the file when the last one has been read.
+
+### Mouse and touch
+
+`POINTER_X` and `POINTER_Y` give the position of the mouse or the last finger on the pixel
+screen, in pixels, so they can be used as framebuffer coordinates directly. The position is
+clamped to the screen and stays where it was when the button or finger is let go.
+`POINTER_BTN` bit 0 is 1 while the button (left button) or a finger is down. Bit 1 is a
+latch for taps that are over before the program looks: it is set whenever the button goes
+down and stays set until the program writes to `POINTER_BTN` (any value), so a program can
+read it once per frame, handle the tap and clear it.
+
+```
+        ld   t0, [s3+POINTER_BTN]
+        andi t1, t0, 2          ; pressed since last time?
+        beqz t1, no_tap
+        st   r0, [s3+POINTER_BTN]       ; clear the latch
+```
+
+Only the playground has a pointer. In the Verilog simulation the three registers read 0.
+`programs/paint.asm` is an example (it is in the playground's example menu).
 
 ## 8. Calling convention
 

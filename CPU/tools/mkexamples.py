@@ -26,6 +26,7 @@ PROGRAMS = [                      # file name in programs/, name in the example 
     ('tetris', 'Tetris'),
     ('cube', 'Spinning cube'),
     ('plasma', 'Plasma'),
+    ('paint', 'Paint with mouse or touch'),
     ('hexrun', 'Hexrun'),
     ('platformer/build/platformer', 'Platformer', [     # built from C (see platformer/DESIGN.md)
         '; A side-scrolling platformer written in C, compiled to RV32E assembly and translated to',

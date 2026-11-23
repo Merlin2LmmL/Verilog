@@ -231,6 +231,10 @@
       this.keys = [];                     // key codes waiting to be read (pushKey)
       this.readsKeys = false;             // the program has looked at the keyboard
       this.held = 0;                      // keys that are down right now, KEYS_HELD (setHeld)
+      this.pointerX = 0;                  // mouse / touch position in screen pixels (setPointer)
+      this.pointerY = 0;
+      this.pointerDown = false;           // button or finger is down
+      this.pointerPressed = false;        // went down since the program last wrote POINTER_BTN
       this.touched = new Set();           // word indexes of RAM that were written
       this.lastWrittenReg = null;
       this.lastStore = null;
@@ -258,6 +262,9 @@
           case 0x10: return this.timer;
           case 0x24: return this.vsync;                           // VSYNC
           case 0x28: return this.held;                            // KEYS_HELD
+          case 0x2C: return this.pointerX;                        // POINTER_X
+          case 0x30: return this.pointerY;                        // POINTER_Y
+          case 0x34: return (this.pointerDown ? 1 : 0) | (this.pointerPressed ? 2 : 0);   // POINTER_BTN
           case 0x14: return this.rng;
           case 0x1C: return this.leds;
         }
@@ -355,7 +362,7 @@
             if (addr >= IO_BASE) {
               const reg = addr - IO_BASE;
               if (reg === 0x14) this.rng = xorshift(this.rng);
-              if (reg === 0x08 || reg === 0x0C || reg === 0x28) this.readsKeys = true;
+              if (reg === 0x08 || reg === 0x0C || (reg >= 0x28 && reg <= 0x34)) this.readsKeys = true;
             }
             if (d.memByte) {
               const byte = (w >>> (8 * lane)) & 255;
@@ -410,7 +417,7 @@
       if (d.memRead && t.memAddr >= IO_BASE) {
         const reg = t.memAddr - IO_BASE;
         if (reg === 0x14) this.rng = xorshift(this.rng);
-        if (reg === 0x08 || reg === 0x0C || reg === 0x28) this.readsKeys = true;
+        if (reg === 0x08 || reg === 0x0C || (reg >= 0x28 && reg <= 0x34)) this.readsKeys = true;
         if (reg === 0x0C && this.keys.length) this.keys.shift();    // reading the key takes it
       }
 
@@ -450,6 +457,7 @@
           case 0x04: this.out(String(value | 0)); break;
           case 0x1C: this.leds = u32(value); break;
           case 0x20: this.fbShown.set(this.fb); this.frames++; break;   // FB_SHOW
+          case 0x34: this.pointerPressed = false; break;                // POINTER_BTN: any write clears "pressed"
         }
       } else if (!(addr >= SCREEN_BASE && addr < SCREEN_END)) {
         this.warnings.push(`store to unmapped address ${hex8(addr)}`);
@@ -465,6 +473,14 @@
 
     // a key goes down or up: bit 0 up (arrow / W), 1 down (arrow / S), 2 left (arrow / A),
     // 3 right (arrow / D), 4 space. The program reads them as KEYS_HELD (ISA.md section 7)
+    // the mouse or a finger moved / went down / went up; x and y are screen pixels (POINTER_X/Y)
+    setPointer(x, y, down) {
+      this.pointerX = Math.min(FB_W - 1, Math.max(0, Math.floor(x)));
+      this.pointerY = Math.min(FB_H - 1, Math.max(0, Math.floor(y)));
+      if (down && !this.pointerDown) this.pointerPressed = true;
+      this.pointerDown = down;
+    }
+
     setHeld(bit, down) {
       this.held = down ? (this.held | (1 << bit)) : (this.held & ~(1 << bit));
     }

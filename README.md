@@ -71,6 +71,13 @@ runs.
   the program, including `S` and `R`, and the arrow keys arrive as `0x80`–`0x83`.
   `Esc` gives the keys back to the shortcuts. *Fullscreen*, `F` or a double click on
   the screen make it fill the whole monitor, with the keys going to the program.
+  The mouse and touches on the screen are visible to the program too, as the pointer
+  registers `POINTER_X`, `POINTER_Y` and `POINTER_BTN` (ISA.md section 7).
+  On a phone or tablet, *Fullscreen* fills the display (on an iPhone, where browsers
+  can't do real fullscreen, it covers the whole page instead). A touch screen also gets
+  an exit button, a d-pad and a space button in fullscreen for the games (the gamepad
+  button at the top left hides them), and the screen turns to landscape where the
+  browser allows it.
 
 **Running it**
 
@@ -80,7 +87,7 @@ runs.
 | Run | `R` | run until `halt`; press again to pause |
 | Reset | `Esc` | return to the start with the program still loaded |
 | Speed box | | Instructions per second as a number. 2500000 is real time (2.5 MHz, kept in step with your monitor's refreshes so animations don't stutter), -1 is as fast as possible. The screen examples pick real time by themselves |
-| Fullscreen | `F` | show the screen as big as possible, `Esc` leaves it |
+| Fullscreen | `F` | show the screen as big as possible, `Esc` leaves it (on a touch screen the ✕ button) |
 
 The page stops by itself at `halt` and at an illegal instruction, and in the
 "as fast as possible" mode also after 20 million cycles, unless the program uses the
@@ -123,6 +130,7 @@ All of them are in `CPU/programs/` (assembly) and in the playground's *Example* 
 - `screen.asm`: a ball bouncing on the colored text screen.
 - `pixels.asm`: the 128x96 pixel screen, with a gradient, all 256 colors and a bouncing square.
 - `draw.asm`: draw on the pixel screen with the arrow keys.
+- `paint.asm`: paint with the mouse or a finger, using the pointer registers. Pick a color in the strip at the top. It only runs in the playground, because the Verilog simulation has no pointer.
 - `snake.asm`: snake with a menu for the size, the speed and the number of apples.
 - `video.asm`: plays a compressed 26 second black-and-white video from RAM.
 - `mandelbrot.asm`: a continuous zoom into the Mandelbrot set, in fixed point math (uses `mulh`).

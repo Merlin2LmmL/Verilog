@@ -25,6 +25,8 @@ module io (
     localparam FB_SHOW     = 8'h20;   // W: show the framebuffer
     localparam VSYNC       = 8'h24;   // R: screen refreshes since reset
     localparam KEYS_HELD   = 8'h28;   // R: bit mask of the keys that are held down, see below
+    // 8'h2C POINTER_X, 8'h30 POINTER_Y, 8'h34 POINTER_BTN: mouse / touch, playground only.
+    // There is no pointer in the simulation, so they read 0 (the default below)
 
     // the screen refreshes 60 times per second at the CPU's 2.5 MHz clock. A program that
     // waits for VSYNC to change and then draws one frame moves exactly as smoothly as the

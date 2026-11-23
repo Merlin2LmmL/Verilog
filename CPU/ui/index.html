@@ -51,15 +51,36 @@
   #speed-label { color: var(--muted, inherit); font-size: 0.9em; }
 
   #screen-details { margin: 0 0 8px; }
-  #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated; }
+  #screen { display: block; width: 100%; margin-top: 4px; background: black; border: 1px solid black; image-rendering: pixelated;
+            touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   #screen:focus { outline: 3px solid var(--wb); outline-offset: 0; }
   #screen-bar { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 4px; }
   #screen-info { font-size: 12px; color: #555; }
   #screen-bar button { font-size: 12px; padding: 2px 8px; flex-shrink: 0; }
   /* fullscreen: the screen as big as it fits, still 4:3 */
-  #screen-box:fullscreen { background: black; display: flex; align-items: center; justify-content: center; }
-  #screen-box:fullscreen #screen { width: min(100vw, calc(100vh * 4 / 3)); height: auto; margin: 0; border: 0; }
-  #screen-box:fullscreen #screen:focus { outline: none; }
+  /* a phone browser without the Fullscreen API (iPhone Safari) gets .pseudo-fs: the same box, fixed over the whole page */
+  #screen-box { position: relative; }
+  #screen-box:fullscreen, #screen-box.pseudo-fs { background: black; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  #screen-box.pseudo-fs { position: fixed; inset: 0; z-index: 1000; }
+  #screen-box:fullscreen #screen, #screen-box.pseudo-fs #screen { width: min(100vw, calc(100vh * 4 / 3)); width: min(100vw, calc(100dvh * 4 / 3)); height: auto; margin: 0; border: 0; }
+  #screen-box:fullscreen #screen:focus, #screen-box.pseudo-fs #screen:focus { outline: none; }
+  /* touch controls, only in fullscreen on a touch screen: exit button, d-pad and jump button */
+  .fs-ui { display: none; position: absolute; z-index: 2; user-select: none; -webkit-user-select: none; touch-action: none; }
+  .fs-ui button { font-size: 22px; background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.4); border-radius: 12px; touch-action: none; }
+  .fs-ui button:active, .fs-ui button.on { background: rgba(255,255,255,.5); }
+  #fs-exit { top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); }
+  #fs-exit button, #fs-pad-toggle button { width: 44px; height: 44px; font-size: 18px; }
+  #fs-pad-toggle { top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); }
+  #fs-pad { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); display: none; grid-template: repeat(3, 56px) / repeat(3, 56px); gap: 4px; }
+  #fs-pad button { width: 56px; height: 56px; }
+  #fs-jump { right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); }
+  #fs-jump button { width: 84px; height: 84px; border-radius: 50%; font-size: 16px; }
+  #screen-box:fullscreen #fs-exit, #screen-box.pseudo-fs #fs-exit { display: block; }
+  @media (pointer: coarse) {
+    #screen-box:fullscreen #fs-pad-toggle, #screen-box.pseudo-fs #fs-pad-toggle { display: block; }
+    #screen-box:fullscreen:not(.nopad) #fs-pad, #screen-box.pseudo-fs:not(.nopad) #fs-pad { display: grid; }
+    #screen-box:fullscreen:not(.nopad) #fs-jump, #screen-box.pseudo-fs:not(.nopad) #fs-jump { display: block; }
+  }
 
   #errors { color: #b00020; font-size: 13px; min-height: 0; }
   #errors div { margin-top: 2px; }
@@ -152,6 +173,14 @@
       <summary>Screen</summary>
       <div id="screen-box">
         <canvas id="screen" width="128" height="96" tabindex="0" title="Click it and type to send keys to the program"></canvas>
+        <div id="fs-exit" class="fs-ui"><button type="button" aria-label="Exit fullscreen">✕</button></div>
+        <div id="fs-pad-toggle" class="fs-ui"><button type="button" aria-label="Show or hide the controls">🎮</button></div>
+        <div id="fs-pad" class="fs-ui">
+          <span></span><button type="button" data-bit="0" data-key="128" aria-label="Up">▲</button><span></span>
+          <button type="button" data-bit="2" data-key="130" aria-label="Left">◀</button><span></span><button type="button" data-bit="3" data-key="131" aria-label="Right">▶</button>
+          <span></span><button type="button" data-bit="1" data-key="129" aria-label="Down">▼</button><span></span>
+        </div>
+        <div id="fs-jump" class="fs-ui"><button type="button" data-bit="4" data-key="32" aria-label="Space">space</button></div>
       </div>
       <div id="screen-bar">
         <span id="screen-info"></span>
