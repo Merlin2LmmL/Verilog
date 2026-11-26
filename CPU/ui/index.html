@@ -76,6 +76,10 @@
   #fs-exit { top: calc(8px + env(safe-area-inset-top)); right: calc(8px + env(safe-area-inset-right)); }
   #fs-exit button, #fs-pad-toggle button { width: 44px; height: 44px; }
   #fs-pad-toggle { top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); }
+  #fs-pause { top: calc(8px + env(safe-area-inset-top)); left: calc(60px + env(safe-area-inset-left)); }
+  #fs-pause button { width: 44px; height: 44px; }
+  #fs-pause .play, #screen-box.paused #fs-pause .bars { display: none; }
+  #screen-box.paused #fs-pause .play { display: block; }
   #fs-pad { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); display: none; grid-template: repeat(3, 56px) / repeat(3, 56px); gap: 4px; }
   #fs-pad button { width: 56px; height: 56px; }
   #fs-jump { right: calc(12px + env(safe-area-inset-right)); bottom: calc(12px + env(safe-area-inset-bottom)); }
@@ -83,6 +87,7 @@
   #screen-box:fullscreen #fs-exit, #screen-box.pseudo-fs #fs-exit { display: block; }
   @media (pointer: coarse) {
     #screen-box:fullscreen #fs-pad-toggle, #screen-box.pseudo-fs #fs-pad-toggle { display: block; }
+    #screen-box:fullscreen #fs-pause, #screen-box.pseudo-fs #fs-pause { display: block; }
     #screen-box:fullscreen:not(.nopad) #fs-pad, #screen-box.pseudo-fs:not(.nopad) #fs-pad { display: grid; }
     #screen-box:fullscreen:not(.nopad) #fs-jump, #screen-box.pseudo-fs:not(.nopad) #fs-jump { display: block; }
   }
@@ -167,7 +172,7 @@
 
     <div id="controls">
       <button id="step" class="primary" title="Key: S">Step</button>
-      <button id="run" title="Key: R">Run</button>
+      <button id="run" title="Key: R or Enter">Run</button>
       <button id="reset" title="Key: Esc">Reset</button>
       <label id="speed-label" title="Instructions per second. 2500000 is real time (2.5 MHz), -1 is as fast as possible">
         <input id="speed" type="number" value="4" min="-1" step="1"> instr/s
@@ -176,10 +181,11 @@
 
     <details id="screen-details">
       <summary>Screen</summary>
-      <div id="screen-box">
+      <div id="screen-box" class="paused">
         <canvas id="screen" width="128" height="96" tabindex="0" title="Click it and type to send keys to the program"></canvas>
         <div id="fs-exit" class="fs-ui"><button type="button" aria-label="Exit fullscreen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
         <div id="fs-pad-toggle" class="fs-ui"><button type="button" aria-label="Show or hide the controls"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button></div>
+        <div id="fs-pause" class="fs-ui"><button type="button" aria-label="Pause or resume (Enter)"><svg class="bars" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></svg><svg class="play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></button></div>
         <div id="fs-pad" class="fs-ui">
           <span></span><button type="button" data-bit="0" data-key="128" aria-label="Up"><svg viewBox="0 0 24 24"><path d="M5 15l7-7 7 7"/></svg></button><span></span>
           <button type="button" data-bit="2" data-key="130" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><span></span><button type="button" data-bit="3" data-key="131" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>

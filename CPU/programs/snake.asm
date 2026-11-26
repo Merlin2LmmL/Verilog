@@ -4,7 +4,7 @@
 ;
 ; Menu: before every round you can change the size of the playfield (columns and rows), the
 ; speed and the number of apples. Up/down (W/S) picks a line, left/right (A/D) changes it,
-; space or Enter starts. The settings are words at the start of data memory (settings:), so
+; space or Enter starts (in the playground Enter pauses, so use space there). The settings are words at the start of data memory (settings:), so
 ; they can also be changed there, and they are kept for the next round.
 ;
 ; The playfield is a grid of cells, every cell is 5 x 5 pixels (so 25 x 19 is the most that

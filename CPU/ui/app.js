@@ -1217,12 +1217,14 @@ ff000000
   function stop() {
     if (timer !== null) { clearTimeout(timer); cancelAnimationFrame(timer); timer = null; }
     $('run').textContent = 'Run';
+    $('screen-box').classList.add('paused');
   }
 
   function toggleRun() {
     if (timer !== null) { stop(); refresh(); return; }
     if (m.halted) return;
     $('run').textContent = 'Pause';
+    $('screen-box').classList.remove('paused');
     let perSecond = Math.floor(Number($('speed').value));
     if (!Number.isFinite(perSecond) || perSecond === 0 || perSecond < -1) perSecond = 4;
     if (perSecond === -1) perSecond = 0;             // -1 = as fast as possible
@@ -1550,6 +1552,8 @@ ff000000
     }, { passive: false });
     $('fs-exit').addEventListener('click', exitFullscreen);
     $('fs-pad-toggle').addEventListener('click', () => $('screen-box').classList.toggle('nopad'));
+    $('fs-pause').addEventListener('click', () => toggleRun());
+    $('fs-pause').addEventListener('mousedown', (ev) => ev.preventDefault());   // the screen keeps the focus
   }
 
   // keyboard: while the screen has focus, keys go to the program instead of the shortcuts
@@ -1557,6 +1561,8 @@ ff000000
   function keyForProgram(ev) {
     if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
     if (ev.key === 'Escape') { $('screen').blur(); return; }
+    // Enter pauses and resumes a program that draws frames (a game); text programs get it as a key
+    if (ev.key === 'Enter' && m.frames > 0) { ev.preventDefault(); if (!ev.repeat) toggleRun(); return; }
     let code = KEY_CODES[ev.key];
     if (code === undefined && ev.key.length === 1 && ev.key.charCodeAt(0) < 128) code = ev.key.charCodeAt(0);
     if (code === undefined) return;
@@ -1881,6 +1887,7 @@ ff000000
       if (ev.target === $('screen')) return;      // those keys are for the program
       if (ev.key === 's' || ev.key === 'S') { stop(); doStep(); }
       else if (ev.key === 'r' || ev.key === 'R') toggleRun();
+      else if (ev.key === 'Enter' && ev.target.tagName !== 'BUTTON' && ev.target.tagName !== 'INPUT' && !ev.repeat) { ev.preventDefault(); toggleRun(); }
       else if (ev.key === 'Escape') resetMachine();
       else if (ev.key === 'f' || ev.key === 'F') toggleFullscreen();
     });

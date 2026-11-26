@@ -3,7 +3,8 @@
 ; three numbers on the left: score (white), cleared lines (green) and level (yellow).
 ;
 ; Keys: left / A and right / D move the piece, up / W turns it, down / S drops it one step,
-; space drops it all the way, q quits. After game over, any key starts a new game.
+; space drops it all the way, q quits. After game over, any key starts a new game. Holding
+; left, right or down repeats it quickly, without the usual pause of the keyboard (KEYS_HELD).
 ;
 ; Every level (10 lines) makes the pieces fall faster. Clearing 1, 2, 3 or 4 lines at once is
 ; worth 100, 300, 500 or 800 points, times the level.
@@ -25,6 +26,7 @@
         .equ RANDOM,     0x14
         .equ FB_SHOW,    0x20
         .equ VSYNC,      0x24
+        .equ KEYS_HELD,  0x28
 
         .equ TYPE,       0              ; state block: the falling piece (type 0-6, turn 0-3,
         .equ ROT,        4              ; position of its 4 x 4 box in cells), the next type,
@@ -36,6 +38,15 @@
         .equ LEVEL,      28
         .equ TIMER,      32
         .equ OVER,       36
+        .equ HPREV,      40             ; KEYS_HELD of the last frame and the frames until
+        .equ RL,         44             ; left, right and down repeat while held
+        .equ RR,         48
+        .equ RD,         52
+
+        .equ DAS,        9              ; frames before a held left / right repeats, then every ARR
+        .equ ARR,        2
+        .equ DAS_DOWN,   3              ; the same for down
+        .equ ARR_DOWN,   2
 
         .equ BOARD,      0x1000         ; the field: 10 x 20 bytes
         .equ X0,         44             ; top left corner of the field on the screen
@@ -56,7 +67,7 @@ pieces: ; 7 pieces x 4 turns x 16 bits (low byte first): I O T S Z J L
         .byte 0x71, 0x00, 0x26, 0x02, 0x70, 0x04, 0x22, 0x03   ; J
         .byte 0x74, 0x00, 0x22, 0x06, 0x70, 0x01, 0x23, 0x02   ; L
 points: .word 0, 100, 300, 500, 800     ; score for 0-4 lines at once
-state:  .space 40                       ; (a word aligned address: after the two tables of words)
+state:  .space 56                       ; (a word aligned address: after the two tables of words)
 colors: .byte 0x1F, 0xFC, 0xE3, 0x1C, 0xE0, 0x2F, 0xEC    ; I O T S Z J L
 font:   .byte 7, 5, 5, 5, 7             ; digits 0-9, every row is 3 pixels (bits 2..0)
         .byte 2, 6, 2, 2, 7
@@ -259,47 +270,56 @@ land:                                   ; the piece is part of the field now
         pop  lr
         ret
 
+; Keys come in two ways: KEY_DATA gives every press (also the computer's own repeats of a
+; held key, which come only after a pause), KEYS_HELD tells which keys are down right now. A
+; key from KEY_DATA only counts if its KEYS_HELD bit was not already set in the last frame, so
+; the computer's repeats are ignored. While left, right or down stay held, the program repeats
+; them itself: after DAS frames once, then every ARR frames.
 read_keys:                              ; a0 = 1 if q was pressed
-        addi sp, sp, -8
-        st   lr, [sp+4]
+        addi sp, sp, -12
+        st   lr, [sp+8]
+        li   t0, IO
+        ld   t1, [t0+KEYS_HELD]
+        st   t1, [sp+0]                 ; the keys held now
 rk_next:
         li   t0, IO
         ld   t1, [t0+KEY_STATUS]
-        beqz t1, rk_done
+        beqz t1, rk_held
         ld   t1, [t0+KEY_DATA]
         li   t2, 'q'
         beq  t1, t2, rk_quit
+        mov  a0, t1
+        call key_bit
+        ld   t2, [s0+HPREV]
+        and  t2, t2, a0
+        bnez t2, rk_next                ; a repeat of a key that is held: ignore
         ld   t0, [s0+OVER]
         beqz t0, rk_play
         call new_game                   ; after game over any key starts a new game
         j    rk_next
 rk_play:
-        li   t2, 0x82                   ; left
-        beq  t1, t2, rk_left
-        li   t2, 'a'
-        beq  t1, t2, rk_left
-        li   t2, 0x83                   ; right
-        beq  t1, t2, rk_right
-        li   t2, 'd'
-        beq  t1, t2, rk_right
-        li   t2, 0x80                   ; up: turn
-        beq  t1, t2, rk_turn
-        li   t2, 'w'
-        beq  t1, t2, rk_turn
-        li   t2, 0x81                   ; down: one step
-        beq  t1, t2, rk_down
-        li   t2, 's'
-        beq  t1, t2, rk_down
-        li   t2, ' '                    ; space: all the way down
-        beq  t1, t2, rk_drop
+        li   t2, 4
+        beq  a0, t2, rk_left
+        li   t2, 8
+        beq  a0, t2, rk_right
+        li   t2, 1
+        beq  a0, t2, rk_turn
+        li   t2, 2
+        beq  a0, t2, rk_down
+        li   t2, 16
+        beq  a0, t2, rk_drop
         j    rk_next
 rk_left:
+        li   t0, DAS
+        st   t0, [s0+RL]
         li   a0, -1
         li   a1, 0
         li   a2, 0
         call move_piece
         j    rk_next
 rk_right:
+        li   t0, DAS
+        st   t0, [s0+RR]
         li   a0, 1
         li   a1, 0
         li   a2, 0
@@ -332,6 +352,8 @@ rk_turn:
         call move_piece
         j    rk_next
 rk_down:
+        li   t0, DAS_DOWN
+        st   t0, [s0+RD]
         call drop_step
         st   r0, [s0+TIMER]
         j    rk_next
@@ -344,13 +366,97 @@ rk_fall:
         bnez a0, rk_fall
         call land
         j    rk_next
-rk_done:
+
+rk_held:                                ; keys held in this and the last frame repeat
+        ld   t0, [s0+OVER]
+        bnez t0, rk_save
+        ld   t1, [sp+0]
+        ld   t2, [s0+HPREV]
+        and  t1, t1, t2
+        st   t1, [sp+4]
+        andi t0, t1, 4                  ; left
+        beqz t0, rh_right
+        ld   t0, [s0+RL]
+        addi t0, t0, -1
+        st   t0, [s0+RL]
+        bnez t0, rh_right
+        li   t0, ARR
+        st   t0, [s0+RL]
+        li   a0, -1
+        li   a1, 0
+        li   a2, 0
+        call move_piece
+rh_right:
+        ld   t1, [sp+4]
+        andi t0, t1, 8
+        beqz t0, rh_down
+        ld   t0, [s0+RR]
+        addi t0, t0, -1
+        st   t0, [s0+RR]
+        bnez t0, rh_down
+        li   t0, ARR
+        st   t0, [s0+RR]
+        li   a0, 1
+        li   a1, 0
+        li   a2, 0
+        call move_piece
+rh_down:
+        ld   t1, [sp+4]
+        andi t0, t1, 2
+        beqz t0, rk_save
+        ld   t0, [s0+RD]
+        addi t0, t0, -1
+        st   t0, [s0+RD]
+        bnez t0, rk_save
+        li   t0, ARR_DOWN
+        st   t0, [s0+RD]
+        call drop_step
+        st   r0, [s0+TIMER]
+rk_save:
+        ld   t1, [sp+0]
+        st   t1, [s0+HPREV]
         li   a0, 0
         j    rk_ret
 rk_quit:
         li   a0, 1
-rk_ret: ld   lr, [sp+4]
-        addi sp, sp, 8
+rk_ret: ld   lr, [sp+8]
+        addi sp, sp, 12
+        ret
+
+key_bit:                                ; key_bit(a0 = key) -> a0 = its KEYS_HELD bit, 0 if none
+        li   t2, 0x82                   ; left
+        beq  a0, t2, kb_left
+        li   t2, 'a'
+        beq  a0, t2, kb_left
+        li   t2, 0x83                   ; right
+        beq  a0, t2, kb_right
+        li   t2, 'd'
+        beq  a0, t2, kb_right
+        li   t2, 0x80                   ; up
+        beq  a0, t2, kb_up
+        li   t2, 'w'
+        beq  a0, t2, kb_up
+        li   t2, 0x81                   ; down
+        beq  a0, t2, kb_down
+        li   t2, 's'
+        beq  a0, t2, kb_down
+        li   t2, ' '
+        beq  a0, t2, kb_space
+        li   a0, 0
+        ret
+kb_up:  li   a0, 1
+        ret
+kb_down:
+        li   a0, 2
+        ret
+kb_left:
+        li   a0, 4
+        ret
+kb_right:
+        li   a0, 8
+        ret
+kb_space:
+        li   a0, 16
         ret
 
 ; ---------------------------------------------------------------- pieces and field
